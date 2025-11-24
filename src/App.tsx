@@ -762,7 +762,6 @@ export default function GameDemo() {
         if (!player) return;
         p = {
             ...player,
-            // Reset combat-specific stats, but keep health/deck
             block: 0,
             effects: {}, 
             energy: 3,
@@ -1169,20 +1168,20 @@ export default function GameDemo() {
 
   if (screen === 'CLASS_SELECT') {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-        <h2 className="text-4xl font-serif mb-12">Choose Your Class</h2>
-        <div className="flex gap-8">
-          <div onClick={() => setScreen('SUBCLASS_SELECT')} className="w-64 h-96 bg-slate-800 border-2 border-yellow-500 rounded-lg p-6 cursor-pointer hover:scale-105 transition-transform">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-8">
+        <h2 className="text-4xl font-serif mb-12 text-center">Choose Your Class</h2>
+        <div className="flex flex-col md:flex-row gap-8">
+          <div onClick={() => setScreen('SUBCLASS_SELECT')} className="w-64 h-96 bg-slate-800 border-2 border-yellow-500 rounded-lg p-6 cursor-pointer hover:scale-105 transition-transform flex flex-col items-center justify-center">
             <Shield className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-center mb-2">Crusader</h3>
             <p className="text-slate-400 text-center">Durable, Melee, Divine.</p>
           </div>
-          <div className="w-64 h-96 bg-slate-800 border-2 border-slate-700 rounded-lg p-6 opacity-50 cursor-not-allowed grayscale">
+          <div className="w-64 h-96 bg-slate-800 border-2 border-slate-700 rounded-lg p-6 opacity-50 cursor-not-allowed grayscale flex flex-col items-center justify-center">
             <Ghost className="w-16 h-16 text-slate-500 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-center mb-2">Scoundrel</h3>
             <p className="text-slate-400 text-center">Disabled</p>
           </div>
-          <div className="w-64 h-96 bg-slate-800 border-2 border-slate-700 rounded-lg p-6 opacity-50 cursor-not-allowed grayscale">
+          <div className="w-64 h-96 bg-slate-800 border-2 border-slate-700 rounded-lg p-6 opacity-50 cursor-not-allowed grayscale flex flex-col items-center justify-center">
             <Zap className="w-16 h-16 text-slate-500 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-center mb-2">Magus</h3>
             <p className="text-slate-400 text-center">Disabled</p>
@@ -1199,14 +1198,14 @@ export default function GameDemo() {
       { id: 'INQUISITOR', name: 'The Inquisitor', icon: <BookOpen />, desc: 'Focus on Debuffs and Truth.', passive: 'Anathema: Enemy Debuffs cannot be cleansed.' },
     ];
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-        <h2 className="text-4xl font-serif mb-12">Choose Subclass</h2>
-        <div className="flex gap-8">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-8">
+        <h2 className="text-4xl font-serif mb-12 text-center">Choose Subclass</h2>
+        <div className="flex flex-col md:flex-row gap-8">
           {subclasses.map(sub => (
-            <div key={sub.id} onClick={() => { setSubclass(sub.id); setScreen('EQUIPMENT'); }} className="w-72 bg-slate-800 border border-slate-600 hover:border-yellow-500 rounded-lg p-6 cursor-pointer transition-all">
+            <div key={sub.id} onClick={() => { setSubclass(sub.id); setScreen('EQUIPMENT'); }} className="w-72 bg-slate-800 border border-slate-600 hover:border-yellow-500 rounded-lg p-6 cursor-pointer transition-all flex flex-col">
               <div className="text-yellow-500 mb-4 flex justify-center">{sub.icon}</div>
               <h3 className="text-2xl font-bold text-center mb-2">{sub.name}</h3>
-              <p className="text-sm text-slate-300 mb-4 text-center">{sub.desc}</p>
+              <p className="text-sm text-slate-300 mb-4 text-center flex-grow">{sub.desc}</p>
               <div className="bg-slate-900 p-3 rounded text-xs text-slate-400 border border-slate-700">
                 <span className="text-yellow-500 font-bold">Passive:</span> <KeywordText text={sub.passive} />
               </div>
@@ -1230,35 +1229,39 @@ export default function GameDemo() {
     };
 
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-        <h2 className="text-3xl font-serif mb-8">Equipment Loadout</h2>
-        <div className="grid grid-cols-2 gap-8 mb-12">
-          <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-72">
-            <User className="mt-1 text-yellow-500" /> 
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-8">
+        <h2 className="text-3xl font-serif mb-8 text-center">Equipment Loadout</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 w-full max-w-3xl place-items-center">
+          {/* Head */}
+          <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-full max-w-sm border border-slate-700">
+            <div className="flex-shrink-0"><User className="mt-1 text-yellow-500" /></div>
             <div>
                 <div className="text-xs text-slate-400 uppercase tracking-widest">HEAD</div>
                 <div className="font-bold text-lg">{loadout.head.name}</div>
                 <div className="text-xs text-slate-300 mt-1"><KeywordText text={loadout.head.desc} /></div>
             </div>
           </div>
-          <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-72">
-            <ShirtIcon className="mt-1 text-yellow-500" /> 
+          {/* Body */}
+          <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-full max-w-sm border border-slate-700">
+            <div className="flex-shrink-0"><ShirtIcon className="mt-1 text-yellow-500" /></div>
             <div>
                 <div className="text-xs text-slate-400 uppercase tracking-widest">BODY</div>
                 <div className="font-bold text-lg">{loadout.body.name}</div>
                 <div className="text-xs text-slate-300 mt-1"><KeywordText text={loadout.body.desc} /></div>
             </div>
           </div>
-          <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-72">
-            <Sword className="mt-1 text-yellow-500" /> 
+          {/* Main Hand */}
+          <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-full max-w-sm border border-slate-700">
+            <div className="flex-shrink-0"><Sword className="mt-1 text-yellow-500" /></div>
             <div>
                 <div className="text-xs text-slate-400 uppercase tracking-widest">MAIN HAND</div>
                 <div className="font-bold text-lg">{loadout.main.name}</div>
                 <div className="text-xs text-slate-300 mt-1"><KeywordText text={loadout.main.desc} /></div>
             </div>
           </div>
-          <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-72">
-            <Shield className="mt-1 text-yellow-500" /> 
+          {/* Off Hand */}
+          <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-full max-w-sm border border-slate-700">
+            <div className="flex-shrink-0"><Shield className="mt-1 text-yellow-500" /></div>
             <div>
                 <div className="text-xs text-slate-400 uppercase tracking-widest">OFF HAND</div>
                 <div className="font-bold text-lg">{loadout.off.name}</div>
@@ -1266,15 +1269,15 @@ export default function GameDemo() {
             </div>
           </div>
         </div>
-        <button onClick={() => setScreen('DRAFT')} className="px-8 py-3 bg-blue-700 hover:bg-blue-600 rounded font-bold shadow-lg">Confirm Loadout</button>
+        <button onClick={() => setScreen('DRAFT')} className="px-8 py-3 bg-blue-700 hover:bg-blue-600 rounded font-bold shadow-lg w-full max-w-sm md:w-auto">Confirm Loadout</button>
       </div>
     );
   }
 
   if (screen === 'DRAFT') {
-    const commonAtk = COMMON_CRUSADER_CARDS.filter(c => c.id === 'strike');
-    const commonSkl = COMMON_CRUSADER_CARDS.filter(c => c.id === 'warcry');
-    const commonPwr = COMMON_CRUSADER_CARDS.filter(c => c.id === 'iron_will');
+    const commonAtk = COMMON_CRUSADER_CARDS.find(c => c.id === 'strike');
+    const commonSkl = COMMON_CRUSADER_CARDS.find(c => c.id === 'warcry');
+    const commonPwr = COMMON_CRUSADER_CARDS.find(c => c.id === 'iron_will');
 
     // Check if each category has a selected card
     const isReady = draftSelections.attack && draftSelections.skill && draftSelections.power;
@@ -1285,50 +1288,50 @@ export default function GameDemo() {
         <button 
           disabled={!isReady}
           onClick={startGame} 
-          className="absolute top-8 right-8 px-8 py-3 bg-green-700 hover:bg-green-600 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-bold text-lg shadow-lg flex items-center gap-2 transition-all"
+          className="fixed bottom-6 right-6 z-50 md:absolute md:top-8 md:right-8 md:bottom-auto px-6 py-3 md:px-8 md:py-3 bg-green-700 hover:bg-green-600 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-bold text-lg shadow-lg flex items-center gap-2 transition-all"
         >
-          ENTER THE FOREST <ArrowRight size={20} />
+          ENTER <span className="hidden md:inline">THE FOREST</span> <ArrowRight size={20} />
         </button>
 
-        <h2 className="text-3xl font-serif mb-2">Draft Starting Deck</h2>
-        <p className="text-slate-400 mb-12">Select your initial capabilities</p>
+        <h2 className="text-3xl font-serif mb-2 mt-4 md:mt-0 text-center">Draft Starting Deck</h2>
+        <p className="text-slate-400 mb-8 md:mb-12 text-center">Select your initial capabilities</p>
         
-        <div className="flex gap-16 w-full max-w-5xl justify-center">
+        <div className="flex flex-col md:flex-row gap-12 md:gap-16 w-full max-w-5xl justify-center items-center md:items-start pb-24 md:pb-0">
           {/* Attacks */}
           <div className="flex flex-col items-center gap-4">
             <h3 className="text-center font-bold text-red-400 uppercase tracking-widest text-sm">Base Attack (x6)</h3>
-            {commonAtk.map(c => (
+            {commonAtk && (
               <CardView 
-                key={c.id} 
-                card={c} 
-                selected={draftSelections.attack?.id === c.id} 
-                onClick={() => setDraftSelections({...draftSelections, attack: c})} 
+                key={commonAtk.id} 
+                card={commonAtk} 
+                selected={draftSelections.attack?.id === commonAtk.id} 
+                onClick={() => setDraftSelections({...draftSelections, attack: commonAtk})} 
               />
-            ))}
+            )}
           </div>
           {/* Skills */}
           <div className="flex flex-col items-center gap-4">
             <h3 className="text-center font-bold text-blue-400 uppercase tracking-widest text-sm">Innate Skill (x3)</h3>
-            {commonSkl.map(c => (
+            {commonSkl && (
               <CardView 
-                key={c.id} 
-                card={c} 
-                selected={draftSelections.skill?.id === c.id} 
-                onClick={() => setDraftSelections({...draftSelections, skill: c})} 
+                key={commonSkl.id} 
+                card={commonSkl} 
+                selected={draftSelections.skill?.id === commonSkl.id} 
+                onClick={() => setDraftSelections({...draftSelections, skill: commonSkl})} 
               />
-            ))}
+            )}
           </div>
           {/* Powers */}
           <div className="flex flex-col items-center gap-4">
             <h3 className="text-center font-bold text-yellow-400 uppercase tracking-widest text-sm">Innate Power (x1)</h3>
-            {commonPwr.map(c => (
+            {commonPwr && (
               <CardView 
-                key={c.id} 
-                card={c} 
-                selected={draftSelections.power?.id === c.id} 
-                onClick={() => setDraftSelections({...draftSelections, power: c})} 
+                key={commonPwr.id} 
+                card={commonPwr} 
+                selected={draftSelections.power?.id === commonPwr.id} 
+                onClick={() => setDraftSelections({...draftSelections, power: commonPwr})} 
               />
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -1340,7 +1343,7 @@ export default function GameDemo() {
       <div className="flex flex-col h-screen bg-slate-950 text-white overflow-hidden relative">
         
         {/* NOTIFICATION CONTAINER */}
-        <div className="absolute bottom-24 right-8 flex flex-col gap-2 z-50 pointer-events-none items-end">
+        <div className="absolute top-20 right-4 flex flex-col gap-2 z-50 pointer-events-none items-end">
             {/* Clear Button */}
             {notifications.length > 0 && (
                 <button 
@@ -1352,13 +1355,13 @@ export default function GameDemo() {
             )}
             
             {notifications.map(n => (
-                <div key={n.id} className={`pointer-events-auto flex items-center justify-between w-64 p-3 rounded shadow-lg animate-in slide-in-from-right fade-in duration-200 
+                <div key={n.id} className={`pointer-events-auto flex items-center justify-between w-56 p-2 rounded shadow-lg animate-in slide-in-from-right fade-in duration-200 
                     ${n.type === 'damage' ? 'bg-red-900 border border-red-600' : 
                       n.type === 'block' ? 'bg-blue-900 border border-blue-600' : 
                       n.type === 'heal' ? 'bg-green-900 border border-green-600' : 
                       n.type === 'status' ? 'bg-purple-900 border border-purple-600' : 'bg-slate-800 border border-slate-600'}`}>
-                    <span className="text-sm font-bold">{n.message}</span>
-                    <button onClick={() => dismissNotification(n.id)} className="ml-2 hover:text-red-400"><X size={16}/></button>
+                    <span className="text-xs font-bold">{n.message}</span>
+                    <button onClick={() => dismissNotification(n.id)} className="ml-2 hover:text-red-400"><X size={14}/></button>
                 </div>
             ))}
         </div>
@@ -1382,22 +1385,22 @@ export default function GameDemo() {
 
         {/* EQUIPMENT MODAL */}
         {showEquipment && player && (
-            <div className="absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center animate-fade-in">
-                <div className="bg-slate-800 p-8 rounded-xl border-2 border-slate-600 max-w-2xl w-full relative">
+            <div className="absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center animate-fade-in p-4">
+                <div className="bg-slate-800 p-6 md:p-8 rounded-xl border-2 border-slate-600 max-w-2xl w-full relative">
                     <button onClick={() => setShowEquipment(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X /></button>
-                    <h2 className="text-3xl font-serif mb-8 text-center text-yellow-500">Active Equipment</h2>
-                    <div className="grid grid-cols-2 gap-6">
+                    <h2 className="text-2xl md:text-3xl font-serif mb-6 md:mb-8 text-center text-yellow-500">Active Equipment</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         {player.equipment.map(eqId => {
                             const item = EQUIPMENT_DB[eqId];
                             if (!item) return null;
                             return (
-                                <div key={eqId} className="flex items-start gap-3 bg-slate-900 p-4 rounded border border-slate-700">
+                                <div key={eqId} className="flex items-start gap-3 bg-slate-900 p-3 md:p-4 rounded border border-slate-700">
                                     {item.slot === EquipmentSlot.HEAD ? <User className="text-blue-400" /> : 
                                      item.slot === EquipmentSlot.BODY ? <ShirtIcon className="text-blue-400" /> :
                                      item.slot === EquipmentSlot.RIGHT_HAND ? <Sword className="text-red-400" /> : <Shield className="text-green-400" />}
                                     <div>
-                                        <div className="font-bold">{item.name}</div>
-                                        <div className="text-xs text-slate-400 mt-1"><KeywordText text={item.desc} /></div>
+                                        <div className="font-bold text-sm md:text-base">{item.name}</div>
+                                        <div className="text-[10px] md:text-xs text-slate-400 mt-1"><KeywordText text={item.desc} /></div>
                                     </div>
                                 </div>
                             )
@@ -1409,11 +1412,11 @@ export default function GameDemo() {
 
         {/* CRAFTING OVERLAY */}
         {craftingOptions && (
-            <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center animate-fade-in">
-                <h2 className="text-4xl font-serif text-yellow-400 mb-8">Craft A Blessing</h2>
-                <div className="flex gap-8">
+            <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center animate-fade-in p-4">
+                <h2 className="text-2xl md:text-4xl font-serif text-yellow-400 mb-8 text-center">Craft A Blessing</h2>
+                <div className="flex flex-wrap justify-center gap-4 md:gap-8">
                     {craftingOptions.map(card => (
-                        <div key={card.id} onClick={() => handleCraftSelection(card)} className="cursor-pointer hover:scale-110 transition-transform">
+                        <div key={card.id} onClick={() => handleCraftSelection(card)} className="cursor-pointer hover:scale-110 transition-transform scale-90 md:scale-100">
                             <CardView card={card} />
                         </div>
                     ))}
@@ -1423,18 +1426,18 @@ export default function GameDemo() {
 
         {/* ENEMY ACTION OVERLAY */}
         {activeEnemyAction && (
-            <div className="absolute inset-0 bg-black/60 z-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
-                <div className="bg-red-950 border-4 border-red-600 rounded-xl p-8 max-w-lg w-full shadow-2xl text-center relative">
-                    <h2 className="text-3xl font-bold text-white mb-2">{activeEnemyAction.enemyName}</h2>
-                    <div className="text-xl text-red-300 mb-6">uses <span className="font-bold text-white">{activeEnemyAction.moveName}</span></div>
+            <div className="absolute inset-0 bg-black/60 z-50 flex flex-col items-center justify-center animate-in fade-in duration-300 p-4">
+                <div className="bg-red-950 border-4 border-red-600 rounded-xl p-6 md:p-8 max-w-lg w-full shadow-2xl text-center relative">
+                    <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{activeEnemyAction.enemyName}</h2>
+                    <div className="text-lg md:text-xl text-red-300 mb-6">uses <span className="font-bold text-white">{activeEnemyAction.moveName}</span></div>
                     
-                    <div className="bg-black/40 p-4 rounded-lg border border-red-800 text-lg text-slate-200 mb-8">
+                    <div className="bg-black/40 p-4 rounded-lg border border-red-800 text-base md:text-lg text-slate-200 mb-8">
                         <KeywordText text={activeEnemyAction.description} />
                     </div>
 
                     <button 
                         onClick={handleDismissAction}
-                        className="mx-auto flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded text-lg transition-colors"
+                        className="mx-auto flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded text-lg transition-colors"
                     >
                         <X size={24} /> DISMISS
                     </button>
@@ -1443,42 +1446,42 @@ export default function GameDemo() {
         )}
 
         {/* Header */}
-        <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6">
-          <div className="font-bold text-xl">The Forest - Step {step}/10</div>
-          <div className="flex gap-4 text-sm text-slate-400">
+        <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-2">
+          <div className="font-bold text-sm md:text-xl text-center md:text-left w-full md:w-auto">The Forest - Step {step}/10</div>
+          <div className="flex gap-4 text-xs md:text-sm text-slate-400 mt-1 md:mt-0">
              <div className="font-mono">TURN {turn}</div>
           </div>
         </div>
 
         {/* Battlefield */}
-        <div className="flex-1 flex items-center justify-center gap-16 p-8 relative">
+        <div className="flex-1 flex items-center justify-center p-4 relative overflow-hidden">
           {/* Enemies */}
-          <div className="flex gap-8">
+          <div className="flex flex-wrap justify-center gap-4 w-full max-w-4xl">
             {enemies.map((enemy, idx) => (
               <div key={idx} onClick={() => selectedCard && selectedCard.target === CardTarget.SINGLE && playCard(selectedCard, enemy.id)} className={`relative transition-all ${selectedCard && selectedCard.target === CardTarget.SINGLE ? 'cursor-crosshair hover:scale-105 ring-2 ring-red-500 rounded-lg' : ''}`}>
-                <div className="w-32 h-48 bg-red-900 rounded-lg border-4 border-red-700 flex flex-col items-center justify-center shadow-[0_0_20px_rgba(185,28,28,0.2)] relative group">
-                  <div className="absolute top-2 right-2 cursor-help z-20"><Info size={16} className="text-red-300 hover:text-white" />
+                <div className="w-24 h-36 md:w-32 md:h-48 bg-red-900 rounded-lg border-2 md:border-4 border-red-700 flex flex-col items-center justify-center shadow-[0_0_20px_rgba(185,28,28,0.2)] relative group">
+                  <div className="absolute top-1 right-1 md:top-2 md:right-2 cursor-help z-20"><Info size={14} className="text-red-300 hover:text-white" />
                     <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-black border border-red-500 rounded text-xs text-white hidden group-hover:block z-50 shadow-xl">
                         {enemy.description}
                     </div>
                   </div>
-                  <Skull size={48} />
-                  <div className="font-bold mt-2 text-center leading-tight">{enemy.name}</div>
-                  <div className="text-xs text-red-300">{enemy.grade}-Tier</div>
+                  <Skull className="w-8 h-8 md:w-12 md:h-12" />
+                  <div className="font-bold mt-1 md:mt-2 text-center leading-tight text-[10px] md:text-base px-1">{enemy.name}</div>
+                  <div className="text-[8px] md:text-xs text-red-300">{enemy.grade}-Tier</div>
                   {/* HP Bar */}
-                  <div className="w-full px-2 mt-2">
-                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="w-full px-2 mt-1 md:mt-2">
+                    <div className="h-1.5 md:h-2 bg-slate-700 rounded-full overflow-hidden">
                       <div className="h-full bg-red-500 transition-all" style={{width: `${(enemy.currentHealth / enemy.maxHealth) * 100}%`}}></div>
                     </div>
-                    <div className="text-xs text-center mt-1">{enemy.currentHealth}/{enemy.maxHealth}</div>
+                    <div className="text-[8px] md:text-xs text-center mt-0.5 md:mt-1">{enemy.currentHealth}/{enemy.maxHealth}</div>
                     {/* Block */}
-                    {enemy.block > 0 && <div className="text-center text-[10px] text-blue-300 font-bold">Block: {enemy.block}</div>}
+                    {enemy.block > 0 && <div className="text-center text-[8px] md:text-[10px] text-blue-300 font-bold">Block: {enemy.block}</div>}
                   </div>
                 </div>
                 {/* Statuses */}
-                <div className="flex gap-1 mt-2 justify-center flex-wrap max-w-[150px]">
+                <div className="flex gap-0.5 md:gap-1 mt-1 justify-center flex-wrap max-w-[96px] md:max-w-[150px]">
                     {Object.entries(enemy.effects).map(([k, v]) => (
-                        <div key={k} className="bg-slate-800 px-1 rounded text-[10px] border border-slate-600 cursor-help" title={KEYWORDS[k] || k}>{k.substring(0,2)}:{v}</div>
+                        <div key={k} className="bg-slate-800 px-1 rounded text-[8px] md:text-[10px] border border-slate-600 cursor-help" title={KEYWORDS[k] || k}>{k.substring(0,2)}:{v}</div>
                     ))}
                 </div>
               </div>
@@ -1487,78 +1490,82 @@ export default function GameDemo() {
         </div>
 
         {/* Player HUD & Hand Area */}
-        <div className="h-auto min-h-[250px] bg-slate-900 border-t border-slate-800 relative flex flex-col items-center pb-4">
+        <div className="bg-slate-900 border-t border-slate-800 relative flex flex-col items-center">
           
           {/* HUD Bar */}
-          <div className="w-full bg-slate-800 border-b border-slate-700 px-8 py-2 flex items-center justify-between">
+          <div className="w-full bg-slate-800 border-b border-slate-700 px-2 md:px-8 py-2 flex items-center justify-between h-14 md:h-auto">
              {/* Player Stats */}
-             <div className="flex items-center gap-6">
-                <div className="flex flex-col">
-                    <div className="text-sm text-slate-400">Health</div>
-                    <div className="text-xl font-bold text-red-400 flex items-center gap-2">
-                        <Heart className="fill-red-500" size={20}/> {player?.currentHealth} / {player?.maxHealth}
+             <div className="flex items-center gap-2 md:gap-6 flex-1">
+                <div className="flex flex-col items-center md:items-start">
+                    <div className="hidden md:block text-sm text-slate-400">Health</div>
+                    <div className="text-sm md:text-xl font-bold text-red-400 flex items-center gap-1 md:gap-2">
+                        <Heart className="fill-red-500 w-4 h-4 md:w-5 md:h-5"/> {player?.currentHealth}
                     </div>
                 </div>
-                <div className="flex flex-col">
-                    <div className="text-sm text-slate-400">Block</div>
-                    <div className="text-xl font-bold text-blue-400 flex items-center gap-2">
-                        <Shield className="fill-blue-500" size={20}/> {player?.block}
+                <div className="flex flex-col items-center md:items-start">
+                    <div className="hidden md:block text-sm text-slate-400">Block</div>
+                    <div className="text-sm md:text-xl font-bold text-blue-400 flex items-center gap-1 md:gap-2">
+                        <Shield className="fill-blue-500 w-4 h-4 md:w-5 md:h-5"/> {player?.block}
                     </div>
                 </div>
-                <div className="flex flex-col">
-                    <div className="text-sm text-slate-400">Status</div>
-                    <div className="flex gap-2 flex-wrap max-w-md">
-                        {Object.keys(player?.effects || {}).length === 0 && <span className="text-slate-600 italic text-sm">None</span>}
-                        {Object.entries(player!.effects).map(([k, v]) => (
-                            <div key={k} className="bg-slate-950 px-2 py-1 rounded text-xs border border-slate-600 text-yellow-500 font-mono cursor-help relative group">
-                                {k}: {v}
-                                <span className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-black border border-slate-500 rounded hidden group-hover:block z-50 text-white normal-case font-sans">
-                                    {KEYWORDS[k] || k}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                
+                {/* Status Effects - Simplified for Mobile */}
+                <div className="flex gap-1 flex-wrap max-w-[120px] md:max-w-md ml-2">
+                    {Object.entries(player!.effects).map(([k, v]) => (
+                        <div key={k} className="bg-slate-950 px-1.5 py-0.5 rounded text-[10px] md:text-xs border border-slate-600 text-yellow-500 font-mono cursor-help relative group">
+                            {k.substring(0,2)}:{v}
+                            <span className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-black border border-slate-500 rounded hidden group-hover:block z-50 text-white normal-case font-sans">
+                                {KEYWORDS[k] || k}
+                            </span>
+                        </div>
+                    ))}
                 </div>
              </div>
              
              {/* Deck Info */}
-             <div className="flex gap-6 text-slate-400 text-sm font-mono">
+             <div className="flex gap-3 md:gap-6 text-slate-400 text-xs md:text-sm font-mono">
                 <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={() => setShowEquipment(true)}>
-                    <Package size={16}/>
-                    <span>Equipment</span>
+                    <Package size={16} className="md:w-5 md:h-5"/>
+                    <span className="hidden md:inline">Equip</span>
                 </div>
                 <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={openDrawPile}>
-                    <Layers size={16}/>
-                    <span>Draw: {player?.drawPile.length}</span>
+                    <Layers size={16} className="md:w-5 md:h-5"/>
+                    <span className="hidden md:inline">Draw: {player?.drawPile.length}</span>
+                    <span className="md:hidden">{player?.drawPile.length}</span>
                 </div>
                 <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={openDiscardPile}>
-                    <RefreshCw size={16}/>
-                    <span>Discard: {player?.discardPile.length}</span>
+                    <RefreshCw size={16} className="md:w-5 md:h-5"/>
+                    <span className="hidden md:inline">Discard: {player?.discardPile.length}</span>
+                    <span className="md:hidden">{player?.discardPile.length}</span>
                 </div>
              </div>
           </div>
 
           {/* Energy Orb (Floating) */}
-          <div className="absolute -top-8 left-8 bg-yellow-600 text-white w-16 h-16 rounded-full flex flex-col items-center justify-center font-bold border-4 border-slate-900 shadow-xl z-20">
-            <div className="text-xl leading-none">{player?.energy}</div>
-            <div className="text-[8px] uppercase">Energy</div>
+          <div className="absolute -top-6 left-4 md:-top-8 md:left-8 bg-yellow-600 text-white w-12 h-12 md:w-16 md:h-16 rounded-full flex flex-col items-center justify-center font-bold border-4 border-slate-900 shadow-xl z-20">
+            <div className="text-lg md:text-xl leading-none">{player?.energy}</div>
+            <div className="text-[6px] md:text-[8px] uppercase">Energy</div>
           </div>
           
           {/* End Turn Button */}
-          <div className="absolute -top-6 right-8 z-20">
-            <button onClick={startEnemyPhase} className="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded shadow-lg flex items-center gap-2 border-2 border-red-400 hover:scale-105 transition-transform">
-              END TURN <ArrowRight size={20} />
+          <div className="absolute -top-10 right-4 md:-top-6 md:right-8 z-20">
+            <button onClick={startEnemyPhase} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 md:py-3 md:px-8 rounded shadow-lg flex items-center gap-2 border-2 border-red-400 hover:scale-105 transition-transform text-sm md:text-base">
+              <span className="hidden md:inline">END TURN</span> 
+              <span className="md:hidden">END</span>
+              <ArrowRight size={16} className="md:w-5 md:h-5" />
             </button>
           </div>
 
-          {/* Hand Cards */}
-          <div className="flex-1 flex gap-4 items-end px-8 overflow-x-auto w-full justify-center pt-8 pb-2">
-            {player?.hand.map((card, idx) => (
-              <div key={idx} onClick={() => card.target === CardTarget.SINGLE ? setSelectedCard(selectedCard === card ? null : card) : playCard(card)} 
-                   className={`flex-shrink-0 transform transition-all duration-200 hover:-translate-y-12 hover:scale-110 z-0 hover:z-10 ${selectedCard === card ? '-translate-y-12 ring-4 ring-yellow-400 rounded-xl z-10' : ''} ${player?.costModifiers.some(m => !m.cardType || m.cardType === card.type) ? 'ring-2 ring-red-500' : ''}`}>
-                <CardView card={card} playable={player.energy >= getCardCost(card, player)} costDisplay={getCardCost(card, player)} />
-              </div>
-            ))}
+          {/* Hand Cards Container */}
+          <div className="w-full h-48 md:h-64 overflow-x-auto overflow-y-hidden pb-4 pt-8 px-4">
+            <div className="flex justify-start md:justify-center items-end gap-2 md:gap-4 min-w-max mx-auto">
+                {player?.hand.map((card, idx) => (
+                <div key={idx} onClick={() => card.target === CardTarget.SINGLE ? setSelectedCard(selectedCard === card ? null : card) : playCard(card)} 
+                    className={`flex-shrink-0 transform transition-all duration-200 hover:-translate-y-8 md:hover:-translate-y-12 hover:scale-105 z-0 hover:z-10 ${selectedCard === card ? '-translate-y-8 md:-translate-y-12 ring-4 ring-yellow-400 rounded-xl z-10' : ''} ${player?.costModifiers.some(m => !m.cardType || m.cardType === card.type) ? 'ring-2 ring-red-500' : ''}`}>
+                    <CardView card={card} playable={player.energy >= getCardCost(card, player)} costDisplay={getCardCost(card, player)} />
+                </div>
+                ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1566,6 +1573,7 @@ export default function GameDemo() {
   }
 
   if (screen === 'REWARD') {
+    // ... existing reward code ...
     // Generate Rewards
     const common = COMMON_CRUSADER_CARDS[Math.floor(Math.random() * COMMON_CRUSADER_CARDS.length)];
     const common2 = COMMON_CRUSADER_CARDS[Math.floor(Math.random() * COMMON_CRUSADER_CARDS.length)];
@@ -1648,28 +1656,28 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick }: { c
   return (
     <div 
       onClick={onClick}
-      className={`w-32 h-48 bg-slate-800 rounded-xl border-2 ${border} p-3 flex flex-col relative shadow-xl ${!playable ? 'opacity-50 grayscale' : ''} ${selected ? 'ring-4 ring-yellow-400' : ''}`}
+      className={`w-24 h-36 md:w-32 md:h-48 bg-slate-800 rounded-xl border-2 ${border} p-2 md:p-3 flex flex-col relative shadow-xl ${!playable ? 'opacity-50 grayscale' : ''} ${selected ? 'ring-4 ring-yellow-400' : ''}`}
     >
       {/* Cost */}
-      <div className={`absolute -top-3 -left-3 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center font-bold border-2 border-white z-10 text-sm ${costColor}`}>
+      <div className={`absolute -top-2 -left-2 md:-top-3 md:-left-3 w-5 h-5 md:w-6 md:h-6 bg-blue-600 rounded-full flex items-center justify-center font-bold border-2 border-white z-10 text-xs md:text-sm ${costColor}`}>
         {displayCost}
       </div>
       
       {/* Title */}
-      <div className="text-center font-bold text-xs mb-2 pt-2 leading-none min-h-[20px]">{card.name}</div>
+      <div className="text-center font-bold text-[10px] md:text-xs mb-1 md:mb-2 pt-1 leading-none min-h-[20px]">{card.name}</div>
       
       {/* Image Placeholder */}
-      <div className="flex-1 bg-slate-700 rounded mb-2 flex items-center justify-center text-slate-500">
-        {card.type === CardType.ATTACK ? <Sword size={20} /> : card.type === CardType.SKILL ? <Zap size={20} /> : <RefreshCw size={20} />}
+      <div className="flex-1 bg-slate-700 rounded mb-1 md:mb-2 flex items-center justify-center text-slate-500">
+        {card.type === CardType.ATTACK ? <Sword className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-4 h-4 md:w-5 md:h-5" /> : <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />}
       </div>
       
       {/* Description */}
-      <div className="text-[10px] text-center text-slate-300 leading-tight overflow-hidden h-12">
+      <div className="text-[8px] md:text-[10px] text-center text-slate-300 leading-tight overflow-hidden h-8 md:h-12">
         <KeywordText text={card.description} />
       </div>
       
       {/* Footer */}
-      <div className="mt-auto pt-1 text-[8px] text-center text-slate-500 font-mono uppercase truncate">
+      <div className="mt-auto pt-1 text-[6px] md:text-[8px] text-center text-slate-500 font-mono uppercase truncate">
         {card.type} - {card.rarity}
       </div>
     </div>
