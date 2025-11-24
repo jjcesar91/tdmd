@@ -53,7 +53,9 @@ const StatusEffect = {
   THORNS: 'Thorns',
   REGEN: 'Regen',
   GESTATING: 'Gestating',
-  WISDOM: 'Wisdom'
+  WISDOM: 'Wisdom',
+  RECKLESS: 'Reckless',
+  WEAPON_MASTERY: 'Weapon Mastery'
 } as const;
 type StatusEffect = typeof StatusEffect[keyof typeof StatusEffect];
 
@@ -117,31 +119,6 @@ const EquipmentSlot = {
   BODY: 'Body'
 } as const;
 type EquipmentSlot = typeof EquipmentSlot[keyof typeof EquipmentSlot];
-
-const PassiveTrigger = {
-    CONSTANT: 'PassiveConstant',
-    START_OF_RUN: 'StartOfRun',
-    COMBAT_START: 'CombatStart',
-    START_OF_TURN: 'StartOfTurn',
-    END_OF_TURN: 'EndOfTurn',
-    ON_CARD_PLAY: 'OnCardPlay',
-    ON_DISCARD: 'OnDiscard',
-    ON_KILL: 'OnKill',
-    ON_SELF_DAMAGE: 'OnSelfDamage',
-    ON_DAMAGE_TAKEN: 'OnDamageTaken',
-    ON_STATUS_APPLIED: 'OnStatusApplied',
-    ON_DRAW: 'OnDraw'
-} as const;
-type PassiveTrigger = typeof PassiveTrigger[keyof typeof PassiveTrigger];
-
-const StatType = {
-    DAMAGE: 'Damage',
-    BLOCK: 'Block',
-    STRENGTH: 'Strength',
-    MAX_HP: 'MaxHP',
-    TENACITY: 'Tenacity'
-} as const;
-type StatType = typeof StatType[keyof typeof StatType];
 
 const ScalingFactor = {
     STRENGTH: 'Strength',
@@ -288,7 +265,9 @@ const KEYWORDS: Record<string, string> = {
   "Gestating": "Boss Mechanic: Checks Block at start of turn. If >0 Spawns minion, if 0 Stunned.",
   "Debuff": "A Negative Status Effect applied to a unit.",
   "Wisdom": "Draw X additional cards at the start of your turn.",
-  "Craft": "Choose 1 card from 3 options to create."
+  "Craft": "Choose 1 card from 3 options to create.",
+  "Reckless": "Start of Turn: Automatically plays the first drawn card with -1 Cost (if possible).",
+  "Weapon Mastery": "Doubles the effectiveness of Main Hand and Off Hand passives."
 };
 
 // --- DATA: EQUIPMENT CONFIG ---
@@ -332,6 +311,7 @@ const COMMON_CRUSADER_CARDS: ICard[] = [
          g.player.hand.push(atk);
       }
   }},
+  { id: 'at_ready', name: 'At Ready', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 4 Block. Draw 1.', baseBlock: 4, effect: (g) => drawCards(g, 1) },
   { id: 'divine_ward', name: 'Divine Ward', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Gain 2 Protection.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.PROTECTION, 2, logs) },
   { id: 'holy_smite', name: 'Holy Smite', type: CardType.ATTACK, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal dmg equal to Holy Fervor.', baseDamage: 0, effect: (g, tid, logs) => { const dmg = g.player.effects[StatusEffect.HOLY_FERVOR] || 0; dealDamage(g, g.player, getEnemy(g, tid), dmg, logs || []); g.player.effects[StatusEffect.HOLY_FERVOR] = 0; } },
   { id: 'battle_trance', name: 'Battle Trance', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Condition: Hand only Attacks. Gain 2 Energy.', effect: (g, tid, logs) => {
@@ -339,6 +319,8 @@ const COMMON_CRUSADER_CARDS: ICard[] = [
       if (onlyAttacks) g.player.energy += 2; 
   }}, 
   { id: 'iron_will', name: 'Iron Will', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 2 Tenacity.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.TENACITY, 2, logs) },
+  { id: 'reckless_nature', name: 'Reckless Nature', type: CardType.POWER, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Start of Turn: Play first drawn card for -1 Energy.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.RECKLESS, 1, logs) },
+  { id: 'weapon_master', name: 'Weapon Master', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Doubles Main/Off Hand passive effects.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WEAPON_MASTERY, 1, logs) },
   { id: 'pray', name: 'Pray', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Craft 1 Blessing and shuffle into deck.', effect: (g) => { return { action: 'CRAFT', options: BLESSING_CARDS }; } },
   { id: 'in_nomine', name: 'In nomine patris', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Discard 1. Draw 1 Holy.', volatile: true, effect: (g, tid, logs) => {
       if (g.player.hand.length > 0) {
@@ -573,9 +555,12 @@ const dealDamage = (g: any, source: IUnit, target: IUnit, amount: number, logs: 
   if (!target) return 0;
   let dmg = amount + (source.effects[StatusEffect.STRENGTH] || 0);
   
+  // Weapon Mastery Check
+  const masteryMultiplier = (source.effects[StatusEffect.WEAPON_MASTERY] || 0) + 1;
+
   // Apply Equipment Logic (Shortsword)
   if (!source.isEnemy && (source as IPlayer).equipment.includes('shortsword')) {
-      dmg += 1;
+      dmg += (1 * masteryMultiplier);
   }
 
   if (source.effects[StatusEffect.WEAK]) dmg = Math.floor(dmg * 0.75);
@@ -591,7 +576,10 @@ const dealDamage = (g: any, source: IUnit, target: IUnit, amount: number, logs: 
   
   // Apply Equipment On Hit (Morningstar)
   if (!source.isEnemy && (source as IPlayer).equipment.includes('morningstar')) {
-      if (Math.random() > 0.5) applyStatus(target, StatusEffect.BLEED, 1, logs);
+      // Apply X times based on Mastery
+      for(let i=0; i<masteryMultiplier; i++) {
+         if (Math.random() > 0.5) applyStatus(target, StatusEffect.BLEED, 1, logs);
+      }
   }
 
   // Block logic
@@ -659,7 +647,8 @@ export default function GameDemo() {
   const [activeEnemyAction, setActiveEnemyAction] = useState<{enemyName: string, moveName: string, description: string, events: string[]} | null>(null);
   const [actionQueue, setActionQueue] = useState<{enemyId: string, move: IEnemyMove}[]>([]);
   const [craftingOptions, setCraftingOptions] = useState<ICard[] | null>(null);
-  const [draftSelections, setDraftSelections] = useState<{attack:ICard|null, skill:ICard|null, power:ICard|null}>({attack:null, skill:null, power:null});
+  // Updated draft selection state
+  const [draftSelections, setDraftSelections] = useState<{skill:ICard|null, power:ICard|null}>({skill:null, power:null});
   const [notifications, setNotifications] = useState<INotification[]>([]);
   
   const [showEquipment, setShowEquipment] = useState(false);
@@ -685,19 +674,24 @@ export default function GameDemo() {
   const startGame = () => {
     const starterDeck: ICard[] = [];
     const baseAttack = COMMON_CRUSADER_CARDS.find(c => c.id === 'strike');
-    const baseSkill = COMMON_CRUSADER_CARDS.find(c => c.id === 'warcry');
-    const basePower = COMMON_CRUSADER_CARDS.find(c => c.id === 'iron_will');
+    // Selections from Draft
+    const selectedSkill = draftSelections.skill;
+    const selectedPower = draftSelections.power;
 
-    if (baseAttack && baseSkill && basePower) {
+    if (baseAttack && selectedSkill && selectedPower) {
+        // Auto add 6 Strikes
         for(let i=0; i<6; i++) starterDeck.push({...baseAttack, id: `atk_${i}`});
-        for(let i=0; i<3; i++) starterDeck.push({...baseSkill, id: `skl_${i}`});
-        starterDeck.push({...basePower, id: `pwr_${0}`});
+        // Add 3x Selected Skill
+        for(let i=0; i<3; i++) starterDeck.push({...selectedSkill, id: `skl_${i}`});
+        // Add 1x Selected Power
+        starterDeck.push({...selectedPower, id: `pwr_${0}`});
         
         setDeck(starterDeck);
         startEncounter(1, starterDeck);
     }
   };
 
+  // ... (startEncounter same as before) ...
   const startEncounter = (currentStep: number, overrideDeck?: ICard[]) => {
     setStep(currentStep);
     
@@ -803,6 +797,7 @@ export default function GameDemo() {
     setScreen('COMBAT');
   };
 
+  // ... (updateEnemyIntent, playCard same as before) ...
   const updateEnemyIntent = (enemy: IEnemy, turnNum: number, p: IPlayer) => {
     let move: IEnemyMove;
     const ratio = enemy.currentHealth / enemy.maxHealth;
@@ -1102,6 +1097,51 @@ export default function GameDemo() {
     const drawCount = 5 + (newPlayer.effects[StatusEffect.WISDOM] || 0);
     drawCards({player: newPlayer}, drawCount);
     
+    // RECKLESS NATURE LOGIC
+    if (newPlayer.effects[StatusEffect.RECKLESS] && newPlayer.hand.length > 0) {
+        // Find first card
+        const cardToPlay = newPlayer.hand[0];
+        const baseCost = getCardCost(cardToPlay, newPlayer);
+        // Reduced by 1, min 0
+        const reducedCost = Math.max(0, baseCost - 1);
+        
+        // Check if affordable
+        if (newPlayer.energy >= reducedCost) {
+             newPlayer.energy -= reducedCost;
+             const logs: string[] = [`Reckless Nature played ${cardToPlay.name}`];
+             
+             // Simple play logic simulation (only Damage & Status for now to avoid complexity)
+             const g = { player: newPlayer, enemies: newEnemies };
+             
+             // Handle Effects
+             if (cardToPlay.baseDamage) {
+                 const target = newEnemies.length > 0 ? newEnemies[Math.floor(Math.random() * newEnemies.length)] : null;
+                 if (target) {
+                     if (cardToPlay.target === CardTarget.ALL) {
+                        newEnemies.forEach(e => dealDamage(g, newPlayer, e, cardToPlay.baseDamage!, logs));
+                     } else {
+                        dealDamage(g, newPlayer, target, cardToPlay.baseDamage!, logs);
+                     }
+                 }
+             }
+             if (cardToPlay.baseBlock) {
+                 let b = cardToPlay.baseBlock;
+                 if (newPlayer.effects[StatusEffect.TENACITY]) b += newPlayer.effects[StatusEffect.TENACITY];
+                 newPlayer.block += b;
+                 logs.push(`Gained ${b} Block`);
+             }
+             if (cardToPlay.effect) {
+                 cardToPlay.effect(g, undefined, logs);
+             }
+
+             // Move to discard
+             newPlayer.hand.shift(); // Remove first element
+             newPlayer.discardPile.push(cardToPlay);
+             
+             logs.forEach(l => addNotification(l, 'info'));
+        }
+    }
+
     // Update Cost Modifiers
     newPlayer.costModifiers = newPlayer.costModifiers
         .map(mod => ({ ...mod, durationTurns: mod.durationTurns - 1 }))
@@ -1275,12 +1315,20 @@ export default function GameDemo() {
   }
 
   if (screen === 'DRAFT') {
-    const commonAtk = COMMON_CRUSADER_CARDS.find(c => c.id === 'strike');
-    const commonSkl = COMMON_CRUSADER_CARDS.find(c => c.id === 'warcry');
-    const commonPwr = COMMON_CRUSADER_CARDS.find(c => c.id === 'iron_will');
+    // Define Options
+    const draftSkills = [
+        COMMON_CRUSADER_CARDS.find(c => c.id === 'warcry'),
+        COMMON_CRUSADER_CARDS.find(c => c.id === 'draw_steel'),
+        COMMON_CRUSADER_CARDS.find(c => c.id === 'at_ready'),
+    ].filter(Boolean) as ICard[];
+    
+    const draftPowers = [
+        COMMON_CRUSADER_CARDS.find(c => c.id === 'iron_will'),
+        COMMON_CRUSADER_CARDS.find(c => c.id === 'reckless_nature'),
+        COMMON_CRUSADER_CARDS.find(c => c.id === 'weapon_master'),
+    ].filter(Boolean) as ICard[];
 
-    // Check if each category has a selected card
-    const isReady = draftSelections.attack && draftSelections.skill && draftSelections.power;
+    const isReady = draftSelections.skill && draftSelections.power;
 
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-8 relative">
@@ -1290,49 +1338,38 @@ export default function GameDemo() {
           onClick={startGame} 
           className="fixed bottom-6 right-6 z-50 md:absolute md:top-8 md:right-8 md:bottom-auto px-6 py-3 md:px-8 md:py-3 bg-green-700 hover:bg-green-600 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-bold text-lg shadow-lg flex items-center gap-2 transition-all"
         >
-          ENTER <span className="hidden md:inline">THE FOREST</span> <ArrowRight size={20} />
+          Embark <ArrowRight size={20} />
         </button>
 
         <h2 className="text-3xl font-serif mb-2 mt-4 md:mt-0 text-center">Draft Starting Deck</h2>
-        <p className="text-slate-400 mb-8 md:mb-12 text-center">Select your initial capabilities</p>
+        <p className="text-slate-400 mb-8 md:mb-12 text-center">Base Attack (x6 Strike) included automatically.</p>
         
-        <div className="flex flex-col md:flex-row gap-12 md:gap-16 w-full max-w-5xl justify-center items-center md:items-start pb-24 md:pb-0">
-          {/* Attacks */}
-          <div className="flex flex-col items-center gap-4">
-            <h3 className="text-center font-bold text-red-400 uppercase tracking-widest text-sm">Base Attack (x6)</h3>
-            {commonAtk && (
-              <CardView 
-                key={commonAtk.id} 
-                card={commonAtk} 
-                selected={draftSelections.attack?.id === commonAtk.id} 
-                onClick={() => setDraftSelections({...draftSelections, attack: commonAtk})} 
-              />
-            )}
+        <div className="flex flex-col gap-12 w-full max-w-5xl justify-center items-center pb-24 md:pb-0">
+          
+          {/* Skills Row */}
+          <div className="w-full">
+            <h3 className="text-center font-bold text-blue-400 uppercase tracking-widest text-sm mb-6">Select Innate Skill (x3)</h3>
+            <div className="flex justify-center gap-6">
+                {draftSkills.map(card => (
+                  <div key={card.id} className="cursor-pointer hover:scale-105 transition-transform" onClick={() => setDraftSelections(prev => ({...prev, skill: card}))}>
+                      <CardView card={card} selected={draftSelections.skill?.id === card.id} />
+                  </div>
+                ))}
+            </div>
           </div>
-          {/* Skills */}
-          <div className="flex flex-col items-center gap-4">
-            <h3 className="text-center font-bold text-blue-400 uppercase tracking-widest text-sm">Innate Skill (x3)</h3>
-            {commonSkl && (
-              <CardView 
-                key={commonSkl.id} 
-                card={commonSkl} 
-                selected={draftSelections.skill?.id === commonSkl.id} 
-                onClick={() => setDraftSelections({...draftSelections, skill: commonSkl})} 
-              />
-            )}
+
+          {/* Powers Row */}
+          <div className="w-full">
+            <h3 className="text-center font-bold text-yellow-400 uppercase tracking-widest text-sm mb-6">Select Innate Power (x1)</h3>
+             <div className="flex justify-center gap-6">
+                {draftPowers.map(card => (
+                  <div key={card.id} className="cursor-pointer hover:scale-105 transition-transform" onClick={() => setDraftSelections(prev => ({...prev, power: card}))}>
+                      <CardView card={card} selected={draftSelections.power?.id === card.id} />
+                  </div>
+                ))}
+            </div>
           </div>
-          {/* Powers */}
-          <div className="flex flex-col items-center gap-4">
-            <h3 className="text-center font-bold text-yellow-400 uppercase tracking-widest text-sm">Innate Power (x1)</h3>
-            {commonPwr && (
-              <CardView 
-                key={commonPwr.id} 
-                card={commonPwr} 
-                selected={draftSelections.power?.id === commonPwr.id} 
-                onClick={() => setDraftSelections({...draftSelections, power: commonPwr})} 
-              />
-            )}
-          </div>
+
         </div>
       </div>
     );
@@ -1496,12 +1533,23 @@ export default function GameDemo() {
           <div className="w-full bg-slate-800 border-b border-slate-700 px-2 md:px-8 py-2 flex items-center justify-between h-14 md:h-auto">
              {/* Player Stats */}
              <div className="flex items-center gap-2 md:gap-6 flex-1">
+                {/* Health */}
                 <div className="flex flex-col items-center md:items-start">
                     <div className="hidden md:block text-sm text-slate-400">Health</div>
                     <div className="text-sm md:text-xl font-bold text-red-400 flex items-center gap-1 md:gap-2">
                         <Heart className="fill-red-500 w-4 h-4 md:w-5 md:h-5"/> {player?.currentHealth}
                     </div>
                 </div>
+
+                {/* Energy */}
+                <div className="flex flex-col items-center md:items-start">
+                    <div className="hidden md:block text-sm text-slate-400">Energy</div>
+                    <div className="text-sm md:text-xl font-bold text-yellow-400 flex items-center gap-1 md:gap-2">
+                        <Zap className="fill-yellow-500 w-4 h-4 md:w-5 md:h-5"/> {player?.energy}/{player?.maxEnergy}
+                    </div>
+                </div>
+
+                {/* Block */}
                 <div className="flex flex-col items-center md:items-start">
                     <div className="hidden md:block text-sm text-slate-400">Block</div>
                     <div className="text-sm md:text-xl font-bold text-blue-400 flex items-center gap-1 md:gap-2">
@@ -1522,8 +1570,8 @@ export default function GameDemo() {
                 </div>
              </div>
              
-             {/* Deck Info */}
-             <div className="flex gap-3 md:gap-6 text-slate-400 text-xs md:text-sm font-mono">
+             {/* Deck Info & End Turn */}
+             <div className="flex items-center gap-3 md:gap-6 text-slate-400 text-xs md:text-sm font-mono">
                 <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={() => setShowEquipment(true)}>
                     <Package size={16} className="md:w-5 md:h-5"/>
                     <span className="hidden md:inline">Equip</span>
@@ -1538,23 +1586,20 @@ export default function GameDemo() {
                     <span className="hidden md:inline">Discard: {player?.discardPile.length}</span>
                     <span className="md:hidden">{player?.discardPile.length}</span>
                 </div>
+
+                {/* End Turn Button (Moved Here) */}
+                <button 
+                    onClick={startEnemyPhase} 
+                    className="ml-2 bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg shadow-lg border-2 border-red-400 hover:scale-105 transition-transform flex items-center justify-center"
+                    title="End Turn"
+                >
+                    <ArrowRight size={20} />
+                </button>
              </div>
           </div>
 
-          {/* Energy Orb (Floating) */}
-          <div className="absolute -top-6 left-4 md:-top-8 md:left-8 bg-yellow-600 text-white w-12 h-12 md:w-16 md:h-16 rounded-full flex flex-col items-center justify-center font-bold border-4 border-slate-900 shadow-xl z-20">
-            <div className="text-lg md:text-xl leading-none">{player?.energy}</div>
-            <div className="text-[6px] md:text-[8px] uppercase">Energy</div>
-          </div>
-          
-          {/* End Turn Button */}
-          <div className="absolute -top-10 right-4 md:-top-6 md:right-8 z-20">
-            <button onClick={startEnemyPhase} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 md:py-3 md:px-8 rounded shadow-lg flex items-center gap-2 border-2 border-red-400 hover:scale-105 transition-transform text-sm md:text-base">
-              <span className="hidden md:inline">END TURN</span> 
-              <span className="md:hidden">END</span>
-              <ArrowRight size={16} className="md:w-5 md:h-5" />
-            </button>
-          </div>
+          {/* Floating Energy Orb Removed (already handled) */}
+          {/* Old Floating End Turn Button Removed */}
 
           {/* Hand Cards Container */}
           <div className="w-full h-48 md:h-64 overflow-x-auto overflow-y-hidden pb-4 pt-8 px-4">
@@ -1624,7 +1669,7 @@ export default function GameDemo() {
 
 const KeywordText = ({ text }: { text: string }) => {
   // Helper to split text and wrap keywords
-  const parts = text.split(/(\b(?:Block|Vulnerable|Weak|Strength|Bleed|Poison|Burn|Evasion|Holy Fervor|Stun|Confusion|Tenacity|Protection|Innate|Volatile|Retain|Ranged|Exhaust|Mill|Augment|Dispel|Thorns|Rage|Bloodthirst|Entangled|Blighted|Lifevamp|Regen|Gestating|Debuff)\b)/gi);
+  const parts = text.split(/(\b(?:Block|Vulnerable|Weak|Strength|Bleed|Poison|Burn|Evasion|Holy Fervor|Stun|Confusion|Tenacity|Protection|Innate|Volatile|Retain|Ranged|Exhaust|Mill|Augment|Dispel|Thorns|Rage|Bloodthirst|Entangled|Blighted|Lifevamp|Regen|Gestating|Debuff|Reckless|Weapon Mastery)\b)/gi);
   
   return (
     <span>
