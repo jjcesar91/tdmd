@@ -245,6 +245,11 @@ const dealDamage = (g, source, target, amount, logs) => {
 
   if (source.effects[StatusEffect.WEAK]) dmg = Math.floor(dmg * 0.75);
   if (target.effects[StatusEffect.VULNERABLE]) dmg = Math.floor(dmg * 1.5);
+
+  // BURN MECHANIC: Increase damage taken by Burn stacks
+  if (target.effects[StatusEffect.BURN] > 0) {
+      dmg += target.effects[StatusEffect.BURN];
+  }
   
   // Evasion Logic
   if (target.effects[StatusEffect.EVASION]) {
@@ -522,9 +527,10 @@ const MINIONS_DB = {
     id: 'kobold_shaman', name: 'Kobold Shaman', maxHealth: 45, currentHealth: 45, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.A,
     description: "A tribal caster who empowers his allies with dragonfire.",
     moves: [
-      { id: 'anti', name: 'Anti-Voodoo', description: '1 Evasion + 1 Protection', category: EnemyMoveCategory.BASE, intentType: IntentType.BUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 1}, {status: StatusEffect.PROTECTION, amount: 1}] },
+      { id: 'anti', name: 'Trickster Chant', description: '1 Evasion + 1 Weak', category: EnemyMoveCategory.BASE, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 1}, {status: StatusEffect.WEAK, amount: 1, target: 'Player'}] },
       { id: 'ritual', name: 'Fire Ritual', description: 'Buffs on Ally Death', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, mechanic: { triggerCondition: 'OnAllyDeath' } }, 
-      { id: 'evoke', name: 'Evoke Dragonfire', description: '6 Dmg + Burn', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 6, cooldown: 2, statusEffects: [{status: StatusEffect.BURNING, amount: 0, target: 'Player'}], statusScaling: ScalingFactor.AUGMENT }
+      // FIX: Changed BURNING to BURN
+      { id: 'evoke', name: 'Evoke Dragonfire', description: '6 Dmg + Burn', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 6, cooldown: 2, statusEffects: [{status: StatusEffect.BURN, amount: 0, target: 'Player'}], statusScaling: ScalingFactor.AUGMENT }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'dragon_spawn': {
@@ -840,6 +846,15 @@ export default function GameDemo() {
          }
     }
 
+    // ENTANGLED CHECK: Cannot play non-Ranged Attacks
+    if (player.effects[StatusEffect.ENTANGLED] && card.type === CardType.ATTACK) {
+        const isRanged = card.description.includes("Ranged") || card.ranged;
+        if (!isRanged) {
+            addNotification("Entangled! Cannot play non-Ranged Attacks.", 'info');
+            return;
+        }
+    }
+
     interactionLock.current = true;
     setTimeout(() => { interactionLock.current = false; }, 250);
 
@@ -1017,6 +1032,13 @@ export default function GameDemo() {
 
     newPlayer.discardPile.push(...discardedCards);
     newPlayer.hand = retainedCards; 
+    
+    // DECAY Entangled at end of turn (so it lasts 1 turn)
+    if (newPlayer.effects[StatusEffect.ENTANGLED]) {
+        newPlayer.effects[StatusEffect.ENTANGLED]--;
+        if (newPlayer.effects[StatusEffect.ENTANGLED] <= 0) delete newPlayer.effects[StatusEffect.ENTANGLED];
+    }
+
     setPlayer(newPlayer);
 
     const queue = enemies.map(e => ({ enemyId: e.id, move: e.nextMove }));
@@ -1324,7 +1346,7 @@ export default function GameDemo() {
     
     [newPlayer, ...newEnemies].forEach(u => {
         if (u.effects[StatusEffect.BURN]) {
-            u.currentHealth -= u.effects[StatusEffect.BURN];
+            // Modified Burn Mechanic: Just decay stacks here. Damage is applied on hit in dealDamage.
             u.effects[StatusEffect.BURN]--;
             if(u.effects[StatusEffect.BURN] <= 0) delete u.effects[StatusEffect.BURN];
         }
@@ -1829,17 +1851,7 @@ export default function GameDemo() {
                 {player?.hand.map((card, idx) => (
                 <div key={idx} onClick={() => card.target === CardTarget.SINGLE ? setSelectedCard(selectedCard === card ? null : card) : playCard(card)} 
                     className={`flex-shrink-0 transform transition-all duration-200 hover:-translate-y-8 md:hover:-translate-y-12 hover:scale-105 z-0 hover:z-10 ${selectedCard === card ? '-translate-y-8 md:-translate-y-12 ring-4 ring-yellow-400 rounded-xl z-10' : ''} ${player?.costModifiers.some(m => !m.cardType || m.cardType === card.type) ? 'ring-2 ring-red-500' : ''}`}>
-                    <CardView card={card} playable={
-                      // Check playability
-                      (() => {
-                        if (player.energy < getCardCost(card, player)) return false;
-                        if (card.name === 'Battle Trance') {
-                             const otherCards = player.hand.filter(c => c.id !== card.id);
-                             return otherCards.every(c => c.type === CardType.ATTACK);
-                        }
-                        return true;
-                      })()
-                    } costDisplay={getCardCost(card, player)} />
+                    <CardView card={card} playable={player.energy >= getCardCost(card, player)} costDisplay={getCardCost(card, player)} />
                 </div>
                 ))}
             </div>
