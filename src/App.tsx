@@ -3,7 +3,7 @@ import {
   Sword, Shield, Skull, Heart, Zap, 
   ChevronRight, RefreshCw, BookOpen, 
   Flame, Droplets, AlertTriangle, Target, 
-  Ghost, Cross, User, ArrowRight, Play, Plus, Layers, X, Info, Package, Bell, Trash2
+  Ghost, Cross, User, ArrowRight, Play, Plus, Layers, X, Info, Package, Bell, Trash2, Anchor
 } from 'lucide-react';
 
 // --- CONSTANTS & TYPES ---
@@ -11,25 +11,23 @@ import {
 const CardType = {
   ATTACK: 'Attack',
   SKILL: 'Skill',
-  POWER: 'Power'
-} as const;
-type CardType = typeof CardType[keyof typeof CardType];
+  POWER: 'Power',
+  TRAP: 'Trap'
+};
 
 const CardRarity = {
   COMMON: 'Common',
   EPIC: 'Epic',
   LEGENDARY: 'Legendary',
   TOKEN: 'Token'
-} as const;
-type CardRarity = typeof CardRarity[keyof typeof CardRarity];
+};
 
 const CardTarget = {
   SINGLE: 'Single Enemy',
   ALL: 'All Enemies',
   SELF: 'Self',
   RANDOM: 'Random'
-} as const;
-type CardTarget = typeof CardTarget[keyof typeof CardTarget];
+};
 
 const StatusEffect = {
   BLOCK: 'Block',
@@ -56,8 +54,7 @@ const StatusEffect = {
   WISDOM: 'Wisdom',
   RECKLESS: 'Reckless',
   WEAPON_MASTERY: 'Weapon Mastery'
-} as const;
-type StatusEffect = typeof StatusEffect[keyof typeof StatusEffect];
+};
 
 // List of Negative Effects blocked by Protection
 const DEBUFFS = [
@@ -79,29 +76,25 @@ const ClassTag = {
   INQUISITOR: 'INQUISITOR',
   HOLY: 'HOLY',
   BLESSING: 'BLESSING'
-} as const;
-type ClassTag = typeof ClassTag[keyof typeof ClassTag];
+};
 
 const EnemyTier = {
   MINION: 'Minion',
   MINIBOSS: 'Miniboss',
   BOSS: 'Boss'
-} as const;
-type EnemyTier = typeof EnemyTier[keyof typeof EnemyTier];
+};
 
 const EnemyGrade = {
   B: 'B',
   A: 'A',
   S: 'S'
-} as const;
-type EnemyGrade = typeof EnemyGrade[keyof typeof EnemyGrade];
+};
 
 const EnemyMoveCategory = {
   BASE: 'Base',
   TACTIC: 'Tactic',
   LAST_RESORT: 'LastResort'
-} as const;
-type EnemyMoveCategory = typeof EnemyMoveCategory[keyof typeof EnemyMoveCategory];
+};
 
 const IntentType = {
   ATTACK: 'Attack',
@@ -109,16 +102,14 @@ const IntentType = {
   BUFF: 'Buff',
   DEBUFF: 'Debuff',
   SPECIAL: 'Special'
-} as const;
-type IntentType = typeof IntentType[keyof typeof IntentType];
+};
 
 const EquipmentSlot = {
   HEAD: 'Head',
   RIGHT_HAND: 'Right Hand',
   LEFT_HAND: 'Left Hand',
   BODY: 'Body'
-} as const;
-type EquipmentSlot = typeof EquipmentSlot[keyof typeof EquipmentSlot];
+};
 
 const ScalingFactor = {
     STRENGTH: 'Strength',
@@ -137,103 +128,17 @@ const ScalingFactor = {
     NON_PLAYED_CARDS_LAST_TURN: 'NonPlayedCardsLastTurn',
     BLEED_STACKS: 'BleedStacks',
     EXHAUSTED_CARD_COUNT: 'ExhaustedCardCount'
-} as const;
-type ScalingFactor = typeof ScalingFactor[keyof typeof ScalingFactor];
-
-const CharacterSubclass = {
-    KNIGHT: 'Knight',
-    ZEALOT: 'Zealot',
-    INQUISITOR: 'Inquisitor'
-} as const;
-type CharacterSubclass = typeof CharacterSubclass[keyof typeof CharacterSubclass];
+};
 
 const TargetCondition = {
     HAS_POISON: 'HasPoison',
     HAS_BLEED: 'HasBleed',
     HAS_DEBUFF: 'HasDebuff'
-} as const;
-type TargetCondition = typeof TargetCondition[keyof typeof TargetCondition];
-
-// --- INTERFACES ---
-
-interface ICard {
-  id: string;
-  name: string;
-  type: CardType;
-  cost: number;
-  rarity: CardRarity;
-  cardClass: ClassTag[];
-  target: CardTarget;
-  description: string;
-  baseDamage?: number;
-  baseBlock?: number;
-  effect?: (gameState: any, targetId?: string, logs?: string[]) => void | { action: 'CRAFT', options: ICard[] }; 
-  innate?: boolean;
-  volatile?: boolean;
-  retain?: boolean;
-}
-
-interface IEnemyMove {
-  id: string;
-  name: string;
-  description: string;
-  category: EnemyMoveCategory;
-  intentType: IntentType;
-  damage?: number;
-  damageScaling?: ScalingFactor;
-  statusEffects?: { status: StatusEffect, amount: number, target?: string, condition?: TargetCondition }[];
-  statusScaling?: ScalingFactor;
-  cooldown?: number;
-  ranged?: boolean;
-  mechanic?: any; 
-}
-
-interface IUnit {
-  id: string;
-  name: string;
-  maxHealth: number;
-  currentHealth: number;
-  block: number;
-  effects: Record<string, number>;
-  isEnemy: boolean;
-}
-
-interface ICostModifier {
-    amount: number;
-    durationTurns: number;
-    cardType?: CardType;
-}
-
-interface IPlayer extends IUnit {
-  energy: number;
-  maxEnergy: number;
-  deck: ICard[];
-  hand: ICard[];
-  discardPile: ICard[];
-  drawPile: ICard[];
-  subclass: string;
-  equipment: string[]; // IDs of equipped items
-  costModifiers: ICostModifier[];
-}
-
-interface IEnemy extends IUnit {
-  grade: EnemyGrade;
-  description: string;
-  moves: IEnemyMove[];
-  nextMove?: IEnemyMove;
-  lastResortCooldown: number;
-  hasUsedLastResort: boolean;
-}
-
-interface INotification {
-    id: number;
-    message: string;
-    type: 'damage' | 'block' | 'info' | 'status' | 'heal';
-}
+};
 
 // --- DATA: KEYWORDS ---
 
-const KEYWORDS: Record<string, string> = {
+const KEYWORDS = {
   "Block": "Prevents incoming damage. Removed at the start of your turn.",
   "Vulnerable": "Target takes 50% more damage from Attacks.",
   "Weak": "Target deals 25% less damage with Attacks.",
@@ -272,7 +177,7 @@ const KEYWORDS: Record<string, string> = {
 
 // --- DATA: EQUIPMENT CONFIG ---
 
-const EQUIPMENT_DB: Record<string, {name: string, desc: string, slot: EquipmentSlot}> = {
+const EQUIPMENT_DB = {
     'greathelm': { name: 'Greathelm', desc: 'Start Combat: Gain 1 Protection.', slot: EquipmentSlot.HEAD },
     'rusty_mail': { name: 'Rusty Mail', desc: '+10 Max HP.', slot: EquipmentSlot.BODY },
     'shortsword': { name: 'Shortsword', desc: '+1 Damage to Attacks.', slot: EquipmentSlot.RIGHT_HAND },
@@ -285,97 +190,209 @@ const EQUIPMENT_DB: Record<string, {name: string, desc: string, slot: EquipmentS
 
 // --- DATA: CARDS ---
 
-const BLESSING_CARDS: ICard[] = [
-  { id: 'samson', name: "Samson's Strength", type: CardType.SKILL, cost: 1, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Gain 2 Strength.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.STRENGTH, 2, logs) },
-  { id: 'david', name: "King David's Courage", type: CardType.SKILL, cost: 1, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Random card in hand costs 0.', effect: (g, tid, logs) => { if(g.player.hand.length > 0) { const c = g.player.hand[Math.floor(Math.random()*g.player.hand.length)]; c.cost = 0; if(logs) logs.push(`${c.name} costs 0`); } } }, 
-  { id: 'solomon', name: "Solomon's Wisdom", type: CardType.POWER, cost: 1, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Draw +1 card each turn.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WISDOM, 1, logs) } 
-];
+// Helper to make card creation cleaner
+const createCard = (props) => ({
+  effect: () => {},
+  baseDamage: 0,
+  baseBlock: 0,
+  rarity: CardRarity.COMMON,
+  target: CardTarget.SINGLE,
+  cardClass: [],
+  cost: 1,
+  type: CardType.SKILL,
+  ...props
+});
 
-const TOKEN_CARDS: Record<string, ICard> = {
-    'shield_block': { id: 'shield_block', name: 'Shield Block', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Gain 6 Block. Draw 1.', baseBlock: 6, effect: (g, tid, logs) => drawCards(g, 1) },
-    'cleave': { id: 'cleave', name: 'Cleave', type: CardType.ATTACK, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.ZEALOT], target: CardTarget.ALL, description: 'Deal 4 Dmg to ALL.', baseDamage: 4 },
+const getEnemy = (g, id) => g.enemies.find(e => e.id === id);
+const applyStatus = (target, status, amount, logs = []) => {
+  if (!target) return;
+  // Protection Logic
+  if (target.effects[StatusEffect.PROTECTION] && DEBUFFS.includes(status)) {
+    target.effects[StatusEffect.PROTECTION]--;
+    logs.push(`${target.name}: Protection negated ${status}!`);
+    if (target.effects[StatusEffect.PROTECTION] <= 0) delete target.effects[StatusEffect.PROTECTION];
+    return; // Blocked
+  }
+  
+  target.effects[status] = (target.effects[status] || 0) + amount;
+  logs.push(`${target.name}: +${amount} ${status}`);
 };
 
-const COMMON_CRUSADER_CARDS: ICard[] = [
-  { id: 'strike', name: 'Strike', type: CardType.ATTACK, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 5 Damage.', baseDamage: 5 },
-  { id: 'warcry', name: 'Warcry', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 1 Strength.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.STRENGTH, 1, logs) },
-  { id: 'bash', name: 'Bash', type: CardType.ATTACK, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 8 Damage. Apply 2 Vulnerable.', baseDamage: 8, effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.VULNERABLE, 2, logs) },
-  { id: 'draw_steel', name: 'Draw Steel', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Discard 1 random card. Draw 1 Attack.', effect: (g, tid, logs) => { 
+const drawCards = (g, count) => {
+  for (let i = 0; i < count; i++) {
+    if (g.player.drawPile.length === 0) {
+      if (g.player.discardPile.length === 0) break;
+      // Shuffle discard into draw
+      g.player.drawPile = [...g.player.discardPile].sort(() => Math.random() - 0.5);
+      g.player.discardPile = [];
+    }
+    const card = g.player.drawPile.pop();
+    if (card) g.player.hand.push(card);
+  }
+};
+
+const dealDamage = (g, source, target, amount, logs) => {
+  if (!target) return 0;
+  let dmg = amount + (source.effects[StatusEffect.STRENGTH] || 0);
+  
+  // Weapon Mastery Check
+  const masteryMultiplier = (source.effects[StatusEffect.WEAPON_MASTERY] || 0) + 1;
+
+  // Apply Equipment Logic (Shortsword)
+  if (!source.isEnemy && source.equipment.includes('shortsword')) {
+      dmg += (1 * masteryMultiplier);
+  }
+
+  if (source.effects[StatusEffect.WEAK]) dmg = Math.floor(dmg * 0.75);
+  if (target.effects[StatusEffect.VULNERABLE]) dmg = Math.floor(dmg * 1.5);
+  
+  // Evasion Logic
+  if (target.effects[StatusEffect.EVASION]) {
+    target.effects[StatusEffect.EVASION]--;
+    logs.push(`${target.name}: Dodged attack with Evasion!`);
+    if (target.effects[StatusEffect.EVASION] <= 0) delete target.effects[StatusEffect.EVASION];
+    return 0; // Miss
+  }
+  
+  // Apply Equipment On Hit (Morningstar)
+  if (!source.isEnemy && source.equipment.includes('morningstar')) {
+      // Apply X times based on Mastery
+      for(let i=0; i<masteryMultiplier; i++) {
+         if (Math.random() > 0.5) applyStatus(target, StatusEffect.BLEED, 1, logs);
+      }
+  }
+
+  // Block logic
+  let blocked = 0;
+  let unblockedDmg = dmg;
+  if (target.block > 0) {
+    if (target.block >= dmg) {
+      blocked = dmg;
+      target.block -= dmg;
+      unblockedDmg = 0;
+    } else {
+      blocked = target.block;
+      unblockedDmg -= target.block;
+      target.block = 0;
+    }
+    logs.push(`${target.name} blocked ${blocked} damage.`);
+  }
+  
+  if (unblockedDmg > 0) {
+    target.currentHealth -= unblockedDmg;
+    logs.push(`${target.name} took ${unblockedDmg} damage!`);
+    
+    // Trigger Rage
+    if (target.effects[StatusEffect.RAGE]) {
+        applyStatus(target, StatusEffect.STRENGTH, 1, logs);
+        logs.push(`${target.name} is Enraged!`);
+    }
+  }
+  return unblockedDmg;
+};
+
+const BLESSING_CARDS = [
+  createCard({ id: 'samson', name: "Samson's Strength", type: CardType.SKILL, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Gain 2 Strength.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.STRENGTH, 2, logs) }),
+  createCard({ id: 'david', name: "King David's Courage", type: CardType.SKILL, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Random card in hand costs 0.', effect: (g, tid, logs) => { if(g.player.hand.length > 0) { const c = g.player.hand[Math.floor(Math.random()*g.player.hand.length)]; c.cost = 0; if(logs) logs.push(`${c.name} costs 0`); } } }), 
+  createCard({ id: 'solomon', name: "Solomon's Wisdom", type: CardType.POWER, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Draw +1 card each turn.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WISDOM, 1, logs) }) 
+];
+
+const TOKEN_CARDS = {
+    'shield_block': createCard({ id: 'shield_block', name: 'Shield Block', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Gain 6 Block. Draw 1.', baseBlock: 6, effect: (g, tid, logs) => drawCards(g, 1) }),
+    'cleave': createCard({ id: 'cleave', name: 'Cleave', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.ZEALOT], target: CardTarget.ALL, description: 'Deal 4 Dmg to ALL.', baseDamage: 4 }),
+    'binding_trap': createCard({ 
+        id: 'binding_trap', 
+        name: 'Binding Trap', 
+        type: CardType.TRAP, 
+        rarity: CardRarity.TOKEN, 
+        cost: 2, 
+        target: CardTarget.SELF, 
+        retain: true, 
+        description: 'Retain. After draw phase, discard 1 random card. Exhausts when played.', 
+        effect: (g, tid, logs) => { logs.push("Trap disarmed."); } 
+    }),
+};
+
+const COMMON_CRUSADER_CARDS = [
+  createCard({ id: 'strike', name: 'Strike', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 5 Damage.', baseDamage: 5 }),
+  createCard({ id: 'warcry', name: 'Warcry', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 1 Strength.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.STRENGTH, 1, logs) }),
+  createCard({ id: 'bash', name: 'Bash', type: CardType.ATTACK, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 8 Damage. Apply 2 Vulnerable.', baseDamage: 8, effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.VULNERABLE, 2, logs) }),
+  createCard({ id: 'draw_steel', name: 'Draw Steel', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Discard 1 random card. Draw 1 Attack.', effect: (g, tid, logs) => { 
       if (g.player.hand.length > 0) {
         const discardIdx = Math.floor(Math.random() * g.player.hand.length);
         g.player.discardPile.push(g.player.hand.splice(discardIdx, 1)[0]);
       }
-      const atk = g.player.drawPile.find((c:ICard) => c.type === CardType.ATTACK);
+      const atk = g.player.drawPile.find((c) => c.type === CardType.ATTACK);
       if (atk) {
-         g.player.drawPile = g.player.drawPile.filter((c:ICard) => c !== atk);
+         g.player.drawPile = g.player.drawPile.filter((c) => c !== atk);
          g.player.hand.push(atk);
       }
-  }},
-  { id: 'at_ready', name: 'At Ready', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 4 Block. Draw 1.', baseBlock: 4, effect: (g) => drawCards(g, 1) },
-  { id: 'divine_ward', name: 'Divine Ward', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Gain 2 Protection.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.PROTECTION, 2, logs) },
-  { id: 'holy_smite', name: 'Holy Smite', type: CardType.ATTACK, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal dmg equal to Holy Fervor.', baseDamage: 0, effect: (g, tid, logs) => { const dmg = g.player.effects[StatusEffect.HOLY_FERVOR] || 0; dealDamage(g, g.player, getEnemy(g, tid), dmg, logs || []); g.player.effects[StatusEffect.HOLY_FERVOR] = 0; } },
-  { id: 'battle_trance', name: 'Battle Trance', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Condition: Hand only Attacks. Gain 2 Energy.', effect: (g, tid, logs) => {
-      const onlyAttacks = g.player.hand.every((c:ICard) => c.type === CardType.ATTACK || c.id === 'battle_trance');
+  }}),
+  createCard({ id: 'at_ready', name: 'At Ready', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 4 Block. Draw 1.', baseBlock: 4, effect: (g) => drawCards(g, 1) }),
+  createCard({ id: 'divine_ward', name: 'Divine Ward', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Gain 2 Protection.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.PROTECTION, 2, logs) }),
+  createCard({ id: 'holy_smite', name: 'Holy Smite', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal dmg equal to Holy Fervor.', baseDamage: 0, effect: (g, tid, logs) => { const dmg = g.player.effects[StatusEffect.HOLY_FERVOR] || 0; dealDamage(g, g.player, getEnemy(g, tid), dmg, logs || []); g.player.effects[StatusEffect.HOLY_FERVOR] = 0; } }),
+  createCard({ id: 'battle_trance', name: 'Battle Trance', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Condition: Hand only Attacks. Gain 2 Energy.', effect: (g, tid, logs) => {
+      const onlyAttacks = g.player.hand.every((c) => c.type === CardType.ATTACK || c.id === 'battle_trance');
       if (onlyAttacks) g.player.energy += 2; 
-  }}, 
-  { id: 'iron_will', name: 'Iron Will', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 2 Tenacity.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.TENACITY, 2, logs) },
-  { id: 'reckless_nature', name: 'Reckless Nature', type: CardType.POWER, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Start of Turn: Play first drawn card for -1 Energy.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.RECKLESS, 1, logs) },
-  { id: 'weapon_master', name: 'Weapon Master', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Doubles Main/Off Hand passive effects.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WEAPON_MASTERY, 1, logs) },
-  { id: 'pray', name: 'Pray', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Craft 1 Blessing and shuffle into deck.', effect: (g) => { return { action: 'CRAFT', options: BLESSING_CARDS }; } },
-  { id: 'in_nomine', name: 'In nomine patris', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Discard 1. Draw 1 Holy.', volatile: true, effect: (g, tid, logs) => {
+  }}), 
+  createCard({ id: 'iron_will', name: 'Iron Will', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 2 Tenacity.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.TENACITY, 2, logs) }),
+  createCard({ id: 'reckless_nature', name: 'Reckless Nature', type: CardType.POWER, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Start of Turn: Play first drawn card for -1 Energy.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.RECKLESS, 1, logs) }),
+  createCard({ id: 'weapon_master', name: 'Weapon Master', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Doubles Main/Off Hand passive effects.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WEAPON_MASTERY, 1, logs) }),
+  createCard({ id: 'pray', name: 'Pray', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Craft 1 Blessing and shuffle into deck.', effect: (g) => { return { action: 'CRAFT', options: BLESSING_CARDS }; } }),
+  createCard({ id: 'in_nomine', name: 'In nomine patris', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Discard 1. Draw 1 Holy.', volatile: true, effect: (g, tid, logs) => {
       if (g.player.hand.length > 0) {
         const discardIdx = Math.floor(Math.random() * g.player.hand.length);
         g.player.discardPile.push(g.player.hand.splice(discardIdx, 1)[0]);
       }
-      const holy = g.player.drawPile.find((c:ICard) => c.cardClass.includes(ClassTag.HOLY));
+      const holy = g.player.drawPile.find((c) => c.cardClass.includes(ClassTag.HOLY));
       if (holy) {
-          g.player.drawPile = g.player.drawPile.filter((c:ICard) => c !== holy);
+          g.player.drawPile = g.player.drawPile.filter((c) => c !== holy);
           g.player.hand.push(holy);
       }
-  }},
-  { id: 'harder_fall', name: 'The Harder They Fall', type: CardType.ATTACK, cost: 3, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal 20% Enemy Max HP.', baseDamage: 0, effect: (g, tid, logs) => {
+  }}),
+  createCard({ id: 'harder_fall', name: 'The Harder They Fall', type: CardType.ATTACK, cost: 3, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal 20% Enemy Max HP.', baseDamage: 0, effect: (g, tid, logs) => {
       const t = getEnemy(g, tid);
       if (t) dealDamage(g, g.player, t, Math.ceil(t.maxHealth * 0.2), logs || []);
-  }},
-  { id: 'commandment', name: 'Commandment', type: CardType.ATTACK, cost: 3, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Discard 1 Holy. Deal 5x Holy in Discard.', baseDamage: 0, effect: (g, tid, logs) => {
-      const holyInHand = g.player.hand.find((c:ICard) => c.cardClass.includes(ClassTag.HOLY) && c.id !== 'commandment');
+  }}),
+  createCard({ id: 'commandment', name: 'Commandment', type: CardType.ATTACK, cost: 3, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Discard 1 Holy. Deal 5x Holy in Discard.', baseDamage: 0, effect: (g, tid, logs) => {
+      const holyInHand = g.player.hand.find((c) => c.cardClass.includes(ClassTag.HOLY) && c.id !== 'commandment');
       if (holyInHand) {
-          g.player.hand = g.player.hand.filter((c:ICard) => c !== holyInHand);
+          g.player.hand = g.player.hand.filter((c) => c !== holyInHand);
           g.player.discardPile.push(holyInHand);
       }
-      const holyCount = g.player.discardPile.filter((c:ICard) => c.cardClass.includes(ClassTag.HOLY)).length;
+      const holyCount = g.player.discardPile.filter((c) => c.cardClass.includes(ClassTag.HOLY)).length;
       dealDamage(g, g.player, getEnemy(g, tid), holyCount * 5, logs || []);
-  }},
-  { id: 'bigger_they_are', name: 'The Bigger They Are', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Apply 2 Weak. Shuffle "Harder They Fall" into deck.', effect: (g, tid, logs) => {
+  }}),
+  createCard({ id: 'bigger_they_are', name: 'The Bigger They Are', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Apply 2 Weak. Shuffle "Harder They Fall" into deck.', effect: (g, tid, logs) => {
       applyStatus(getEnemy(g, tid), StatusEffect.WEAK, 2, logs);
-      g.player.drawPile.push({...COMMON_CRUSADER_CARDS.find(c => c.id === 'harder_fall')!, id: `gen_${Date.now()}`});
+      g.player.drawPile.push({...COMMON_CRUSADER_CARDS.find(c => c.id === 'harder_fall'), id: `gen_${Date.now()}`});
       g.player.drawPile.sort(() => Math.random() - 0.5);
-  }},
-  { id: 'our_father', name: 'Our Father...', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Double Holy Fervor.', volatile: true, effect: (g, tid, logs) => {
+  }}),
+  createCard({ id: 'our_father', name: 'Our Father...', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Double Holy Fervor.', volatile: true, effect: (g, tid, logs) => {
       const current = g.player.effects[StatusEffect.HOLY_FERVOR] || 0;
       applyStatus(g.player, StatusEffect.HOLY_FERVOR, current, logs);
-  }}
+  }})
 ];
 
-const KNIGHT_CARDS: ICard[] = [
-  { id: 'shield_block', name: 'Shield Block', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Gain 6 Block. Draw 1.', baseBlock: 6, effect: (g) => drawCards(g, 1) },
-  { id: 'shield_bash', name: 'Shield Bash', type: CardType.ATTACK, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SINGLE, description: 'Deal Dmg equal to Block.', baseDamage: 0, effect: (g, tid, logs) => dealDamage(g, g.player, getEnemy(g, tid), g.player.block, logs || []) },
-  { id: 'hold_fast', name: 'Hold Fast', type: CardType.SKILL, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Give Retain to 1 card in hand.', effect: (g) => {/* Requires UI selection logic, simplified: */ g.player.hand[0].retain = true; } },
+const KNIGHT_CARDS = [
+  createCard({ id: 'shield_block', name: 'Shield Block', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Gain 6 Block. Draw 1.', baseBlock: 6, effect: (g) => drawCards(g, 1) }),
+  createCard({ id: 'shield_bash', name: 'Shield Bash', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SINGLE, description: 'Deal Dmg equal to Block.', baseDamage: 0, effect: (g, tid, logs) => dealDamage(g, g.player, getEnemy(g, tid), g.player.block, logs || []) }),
+  createCard({ id: 'hold_fast', name: 'Hold Fast', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Give Retain to 1 card in hand.', effect: (g) => { if(g.player.hand.length>0) g.player.hand[0].retain = true; } }),
 ];
 
-const ZEALOT_CARDS: ICard[] = [
-  { id: 'cleave', name: 'Cleave', type: CardType.ATTACK, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.ZEALOT], target: CardTarget.ALL, description: 'Deal 4 Dmg to ALL.', baseDamage: 4 },
-  { id: 'blood_tithe', name: 'Blood Tithe', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.ZEALOT], target: CardTarget.SELF, description: 'Lose 3 HP. Gain 2 Energy.', effect: (g) => { g.player.currentHealth -= 3; g.player.energy += 2; } },
+const ZEALOT_CARDS = [
+  createCard({ id: 'cleave', name: 'Cleave', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.ZEALOT], target: CardTarget.ALL, description: 'Deal 4 Dmg to ALL.', baseDamage: 4 }),
+  createCard({ id: 'blood_tithe', name: 'Blood Tithe', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.ZEALOT], target: CardTarget.SELF, description: 'Lose 3 HP. Gain 2 Energy.', effect: (g) => { g.player.currentHealth -= 3; g.player.energy += 2; } }),
 ];
 
-const INQUISITOR_CARDS: ICard[] = [
-  { id: 'condemn', name: 'Condemn', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.INQUISITOR], target: CardTarget.SINGLE, description: 'Apply 2 Weak.', effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.WEAK, 2, logs) },
-  { id: 'flail', name: 'Flail', type: CardType.ATTACK, cost: 1, rarity: CardRarity.COMMON, cardClass: [ClassTag.INQUISITOR], target: CardTarget.SINGLE, description: 'Deal 4 Dmg. Apply 1 Bleed.', baseDamage: 4, effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.BLEED, 1, logs) },
+const INQUISITOR_CARDS = [
+  createCard({ id: 'condemn', name: 'Condemn', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.INQUISITOR], target: CardTarget.SINGLE, description: 'Apply 2 Weak.', effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.WEAK, 2, logs) }),
+  createCard({ id: 'flail', name: 'Flail', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.INQUISITOR], target: CardTarget.SINGLE, description: 'Deal 4 Dmg. Apply 1 Bleed.', baseDamage: 4, effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.BLEED, 1, logs) }),
 ];
 
 // --- DATA: ENEMIES (COMPLETE ROSTER) ---
 
-const MINIONS_DB: Record<string, IEnemy> = {
+const MINIONS_DB = {
   'tadpolearm': {
     id: 'tadpolearm', name: 'Tadpolearm', maxHealth: 28, currentHealth: 28, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.B,
     description: "A young, aggressive humanoid tadpole wielding a primitive spear.",
@@ -418,7 +435,7 @@ const MINIONS_DB: Record<string, IEnemy> = {
     moves: [
       { id: 'bite', name: 'Bite', description: '6 Dmg', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 6 },
       { id: 'conjure', name: 'Conjure Fire', description: '8 Dmg + 1 Burn', category: EnemyMoveCategory.TACTIC, intentType: IntentType.ATTACK, damage: 8, statusEffects: [{status: StatusEffect.BURN, amount: 1, target: 'Player'}] },
-      { id: 'immolate', name: 'Immolation', description: 'Dmg = Current HP', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damageScaling: ScalingFactor.CURRENT_HP, mechanic: { dealDamageToSelf: { type: 'CurrentHP' } }, cooldown: 0 } 
+      { id: 'immolate', name: 'Immolation', description: 'Dmg = 2x Current HP', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damageScaling: ScalingFactor.CURRENT_HP, mechanic: { dealDamageToSelf: { type: 'CurrentHP' } }, cooldown: 0 } 
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'kobold_shaman': {
@@ -426,8 +443,8 @@ const MINIONS_DB: Record<string, IEnemy> = {
     description: "A tribal caster who empowers his allies with dragonfire.",
     moves: [
       { id: 'anti', name: 'Anti-Voodoo', description: '1 Evasion + 1 Protection', category: EnemyMoveCategory.BASE, intentType: IntentType.BUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 1}, {status: StatusEffect.PROTECTION, amount: 1}] },
-      { id: 'ritual', name: 'Fire Ritual', description: 'Buffs on Ally Death', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, mechanic: { triggerCondition: 'OnAllyDeath' } }, // Added Missing Trigger
-      { id: 'evoke', name: 'Evoke Dragonfire', description: '6 Dmg + Burn', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 6, cooldown: 2, statusEffects: [{status: StatusEffect.BURNING, amount: 0, target: 'Player'}], statusScaling: ScalingFactor.AUGMENT } // Added Scaling
+      { id: 'ritual', name: 'Fire Ritual', description: 'Buffs on Ally Death', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, mechanic: { triggerCondition: 'OnAllyDeath' } }, 
+      { id: 'evoke', name: 'Evoke Dragonfire', description: '6 Dmg + Burn', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 6, cooldown: 2, statusEffects: [{status: StatusEffect.BURNING, amount: 0, target: 'Player'}], statusScaling: ScalingFactor.AUGMENT }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'dragon_spawn': {
@@ -449,11 +466,11 @@ const MINIONS_DB: Record<string, IEnemy> = {
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'goblin_hunter': {
-    id: 'goblin_hunter', name: 'Goblin Hunter', maxHealth: 30, currentHealth: 30, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.B,
+    id: 'goblin_hunter', name: 'Goblin Hunter', maxHealth: 35, currentHealth: 35, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.B,
     description: "A cunning trapper.",
     moves: [
       { id: 'trick', name: 'Cheap Trick', description: 'Mill 2 Cards', category: EnemyMoveCategory.BASE, intentType: IntentType.DEBUFF },
-      { id: 'trap', name: 'Set Trap', description: 'Shuffle Trap into Discard', category: EnemyMoveCategory.TACTIC, intentType: IntentType.DEBUFF },
+      { id: 'trap', name: 'Set Trap', description: 'Shuffle Binding Trap into Discard', category: EnemyMoveCategory.TACTIC, intentType: IntentType.DEBUFF, mechanic: { addCardToDiscard: { cardId: 'binding_trap', count: 1 } } },
       { id: 'booby', name: 'Booby Trap', description: 'Dmg = Discard Size', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 5, damageScaling: ScalingFactor.TARGET_DISCARD_PILE_COUNT } 
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
@@ -513,11 +530,7 @@ const MINIONS_DB: Record<string, IEnemy> = {
   }
 };
 
-// --- HELPER FUNCTIONS ---
-
-const getEnemy = (g: any, id: string) => g.enemies.find((e: IEnemy) => e.id === id);
-
-const getCardCost = (card: ICard, player: IPlayer) => {
+const getCardCost = (card, player) => {
     let cost = card.cost;
     // Check for cost modifiers (e.g. from Frogman)
     player.costModifiers.forEach(mod => {
@@ -528,151 +541,57 @@ const getCardCost = (card: ICard, player: IPlayer) => {
     return Math.max(0, cost);
 };
 
-const healUnit = (unit: IUnit, amount: number, logs: string[]) => {
+const healUnit = (unit, amount, logs) => {
     if (unit.currentHealth >= unit.maxHealth) return;
     const actualHeal = Math.min(amount, unit.maxHealth - unit.currentHealth);
     unit.currentHealth += actualHeal;
     logs.push(`${unit.name} healed for ${actualHeal} HP.`);
 };
 
-const applyStatus = (target: IUnit, status: StatusEffect, amount: number, logs: string[] = []) => {
-  if (!target) return;
-  // Protection Logic
-  if (target.effects[StatusEffect.PROTECTION] && !DEBUFFS.includes(status)) {
-      // Pass through - Protection only blocks negative effects
-  } else if (target.effects[StatusEffect.PROTECTION] && DEBUFFS.includes(status)) {
-    target.effects[StatusEffect.PROTECTION]--;
-    logs.push(`${target.name}: Protection negated ${status}!`);
-    if (target.effects[StatusEffect.PROTECTION] <= 0) delete target.effects[StatusEffect.PROTECTION];
-    return; // Blocked
-  }
-  
-  target.effects[status] = (target.effects[status] || 0) + amount;
-  logs.push(`${target.name}: +${amount} ${status}`);
-};
-
-const dealDamage = (g: any, source: IUnit, target: IUnit, amount: number, logs: string[]): number => {
-  if (!target) return 0;
-  let dmg = amount + (source.effects[StatusEffect.STRENGTH] || 0);
-  
-  // Weapon Mastery Check
-  const masteryMultiplier = (source.effects[StatusEffect.WEAPON_MASTERY] || 0) + 1;
-
-  // Apply Equipment Logic (Shortsword)
-  if (!source.isEnemy && (source as IPlayer).equipment.includes('shortsword')) {
-      dmg += (1 * masteryMultiplier);
-  }
-
-  if (source.effects[StatusEffect.WEAK]) dmg = Math.floor(dmg * 0.75);
-  if (target.effects[StatusEffect.VULNERABLE]) dmg = Math.floor(dmg * 1.5);
-  
-  // Evasion Logic
-  if (target.effects[StatusEffect.EVASION]) {
-    target.effects[StatusEffect.EVASION]--;
-    logs.push(`${target.name}: Dodged attack with Evasion!`);
-    if (target.effects[StatusEffect.EVASION] <= 0) delete target.effects[StatusEffect.EVASION];
-    return 0; // Miss
-  }
-  
-  // Apply Equipment On Hit (Morningstar)
-  if (!source.isEnemy && (source as IPlayer).equipment.includes('morningstar')) {
-      // Apply X times based on Mastery
-      for(let i=0; i<masteryMultiplier; i++) {
-         if (Math.random() > 0.5) applyStatus(target, StatusEffect.BLEED, 1, logs);
-      }
-  }
-
-  // Block logic
-  let blocked = 0;
-  let unblockedDmg = dmg;
-  if (target.block > 0) {
-    if (target.block >= dmg) {
-      blocked = dmg;
-      target.block -= dmg;
-      unblockedDmg = 0;
-    } else {
-      blocked = target.block;
-      unblockedDmg -= target.block;
-      target.block = 0;
-    }
-    logs.push(`${target.name} blocked ${blocked} damage.`);
-  }
-  
-  if (unblockedDmg > 0) {
-    target.currentHealth -= unblockedDmg;
-    logs.push(`${target.name} took ${unblockedDmg} damage!`);
-    
-    // Trigger Rage
-    if (target.effects[StatusEffect.RAGE]) {
-        applyStatus(target, StatusEffect.STRENGTH, 1, logs);
-        logs.push(`${target.name} is Enraged!`);
-    }
-    
-    // Check for OnAllyDeath triggers (e.g. Fire Ritual)
-    // This logic needs to be in the main loop or check for death
-    // For simplicity in this function, we just deal damage. 
-    // Death check happens in state update.
-  }
-  return unblockedDmg;
-};
-
-const drawCards = (g: any, count: number) => {
-  for (let i = 0; i < count; i++) {
-    if (g.player.drawPile.length === 0) {
-      if (g.player.discardPile.length === 0) break;
-      // Shuffle discard into draw
-      g.player.drawPile = [...g.player.discardPile].sort(() => Math.random() - 0.5);
-      g.player.discardPile = [];
-    }
-    const card = g.player.drawPile.pop();
-    if (card) g.player.hand.push(card);
-  }
-};
-
 // --- COMPONENT ---
 
 export default function GameDemo() {
-  const [screen, setScreen] = useState<'INTRO'|'CLASS_SELECT'|'SUBCLASS_SELECT'|'EQUIPMENT'|'DRAFT'|'COMBAT'|'REWARD'|'GAMEOVER'>('INTRO');
-  const [subclass, setSubclass] = useState<string>('');
-  const [deck, setDeck] = useState<ICard[]>([]);
+  const [screen, setScreen] = useState('INTRO');
+  const [subclass, setSubclass] = useState('');
+  const [deck, setDeck] = useState([]);
   const [step, setStep] = useState(1);
   
   // Combat State
-  const [player, setPlayer] = useState<IPlayer | null>(null);
-  const [enemies, setEnemies] = useState<IEnemy[]>([]);
+  const [player, setPlayer] = useState(null);
+  const [enemies, setEnemies] = useState([]);
   const [turn, setTurn] = useState(1);
-  const [combatLog, setCombatLog] = useState<string[]>([]);
-  const [selectedCard, setSelectedCard] = useState<ICard | null>(null);
+  const [combatLog, setCombatLog] = useState([]);
+  const [selectedCard, setSelectedCard] = useState(null);
   
-  const [activeEnemyAction, setActiveEnemyAction] = useState<{enemyName: string, moveName: string, description: string, events: string[]} | null>(null);
-  const [actionQueue, setActionQueue] = useState<{enemyId: string, move: IEnemyMove}[]>([]);
-  const [craftingOptions, setCraftingOptions] = useState<ICard[] | null>(null);
+  const [activeEnemyAction, setActiveEnemyAction] = useState(null);
+  const [actionQueue, setActionQueue] = useState([]);
+  const [craftingOptions, setCraftingOptions] = useState(null);
   // Updated draft selection state
-  const [draftSelections, setDraftSelections] = useState<{skill:ICard|null, power:ICard|null}>({skill:null, power:null});
-  const [notifications, setNotifications] = useState<INotification[]>([]);
+  const [draftSelections, setDraftSelections] = useState({skill:null, power:null});
+  const [notifications, setNotifications] = useState([]);
   
   const [showEquipment, setShowEquipment] = useState(false);
   
   // Pile View State
-  const [viewingPile, setViewingPile] = useState<{title: string, cards: ICard[]} | null>(null);
+  const [viewingPile, setViewingPile] = useState(null);
 
   // Fix: Add Interaction Lock to prevent double-clicks/spam
   const interactionLock = useRef(false);
 
   // --- NOTIFICATION SYSTEM ---
-  const addNotification = (message: string, type: 'damage' | 'block' | 'info' | 'status' | 'heal') => {
+  const addNotification = (message, type) => {
       const id = Date.now() + Math.random();
       setNotifications(prev => [...prev, { id, message, type }]);
   };
 
-  const dismissNotification = (id: number) => {
+  const dismissNotification = (id) => {
       setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   // --- FLOW HANDLERS ---
 
   const startGame = () => {
-    const starterDeck: ICard[] = [];
+    const starterDeck = [];
     const baseAttack = COMMON_CRUSADER_CARDS.find(c => c.id === 'strike');
     // Selections from Draft
     const selectedSkill = draftSelections.skill;
@@ -692,21 +611,21 @@ export default function GameDemo() {
   };
 
   // ... (startEncounter same as before) ...
-  const startEncounter = (currentStep: number, overrideDeck?: ICard[]) => {
+  const startEncounter = (currentStep, overrideDeck) => {
     setStep(currentStep);
     
     const minionsB = Object.values(MINIONS_DB).filter(e => e.grade === EnemyGrade.B);
     const minionsA = Object.values(MINIONS_DB).filter(e => e.grade === EnemyGrade.A);
     const minionsS = Object.values(MINIONS_DB).filter(e => e.grade === EnemyGrade.S);
 
-    const getRandom = (list: IEnemy[]) => {
+    const getRandom = (list) => {
         if (list.length === 0) return minionsB[0]; 
         return list[Math.floor(Math.random() * list.length)];
     };
     
-    const createEnemy = (template: IEnemy, uid: string) => JSON.parse(JSON.stringify({...template, id: uid}));
+    const createEnemy = (template, uid) => JSON.parse(JSON.stringify({...template, id: uid}));
 
-    let enemyPool: IEnemy[] = [];
+    let enemyPool = [];
 
     if (currentStep <= 3) {
         enemyPool = [createEnemy(getRandom(minionsB), 'e1')];
@@ -729,7 +648,7 @@ export default function GameDemo() {
       enemyPool = [createEnemy(minionsS[0], 'boss_placeholder')];
     }
 
-    let p: IPlayer;
+    let p;
 
     if (overrideDeck) {
         // NEW GAME INIT
@@ -783,7 +702,7 @@ export default function GameDemo() {
     const initialHand = [];
     const initialDrawPile = [...p.drawPile];
     for(let i=0; i<5; i++) {
-      if (initialDrawPile.length > 0) initialHand.push(initialDrawPile.pop()!);
+      if (initialDrawPile.length > 0) initialHand.push(initialDrawPile.pop());
     }
     p.hand = initialHand;
     p.drawPile = initialDrawPile;
@@ -798,18 +717,18 @@ export default function GameDemo() {
   };
 
   // ... (updateEnemyIntent, playCard same as before) ...
-  const updateEnemyIntent = (enemy: IEnemy, turnNum: number, p: IPlayer) => {
-    let move: IEnemyMove;
+  const updateEnemyIntent = (enemy, turnNum, p) => {
+    let move;
     const ratio = enemy.currentHealth / enemy.maxHealth;
     
     if (ratio < 0.3 && !enemy.hasUsedLastResort && enemy.lastResortCooldown <= 0) {
-      move = enemy.moves.find(m => m.category === EnemyMoveCategory.LAST_RESORT)!;
+      move = enemy.moves.find(m => m.category === EnemyMoveCategory.LAST_RESORT);
       enemy.hasUsedLastResort = true;
       enemy.lastResortCooldown = move.cooldown || 99;
     } else if (turnNum === 1) {
-      move = enemy.moves.find(m => m.category === EnemyMoveCategory.BASE)!;
+      move = enemy.moves.find(m => m.category === EnemyMoveCategory.BASE);
     } else if (ratio > 0.3 && turnNum === 2) {
-      move = enemy.moves.find(m => m.category === EnemyMoveCategory.TACTIC)!;
+      move = enemy.moves.find(m => m.category === EnemyMoveCategory.TACTIC);
     } else {
       const opts = enemy.moves.filter(m => m.category !== EnemyMoveCategory.LAST_RESORT);
       move = opts[Math.floor(Math.random() * opts.length)];
@@ -817,7 +736,7 @@ export default function GameDemo() {
     enemy.nextMove = move;
   };
 
-  const playCard = (card: ICard, targetId?: string) => {
+  const playCard = (card, targetId) => {
     if (interactionLock.current) return;
     if (!player || activeEnemyAction) return;
     
@@ -848,14 +767,14 @@ export default function GameDemo() {
     newPlayer.energy -= actualCost;
 
     const g = { player: newPlayer, enemies: [...enemies] };
-    const logs: string[] = [];
+    const logs = [];
     
     if (card.baseDamage) {
         const target = targetId ? getEnemy(g, targetId) : enemies[0]; 
         if (card.target === CardTarget.ALL) {
-            g.enemies.forEach(e => dealDamage(g, newPlayer, e, card.baseDamage!, logs));
+            g.enemies.forEach(e => dealDamage(g, newPlayer, e, card.baseDamage, logs));
         } else {
-            dealDamage(g, newPlayer, target, card.baseDamage!, logs);
+            dealDamage(g, newPlayer, target, card.baseDamage, logs);
         }
     }
     if (card.baseBlock) {
@@ -876,13 +795,14 @@ export default function GameDemo() {
 
     newPlayer.hand = newPlayer.hand.filter(c => c.id !== card.id);
     
-    if (card.volatile) {
-        logs.push(`${card.name} burned (Volatile)`);
+    // NEW RULE: Traps Exhaust when played
+    if (card.volatile || card.type === CardType.TRAP) {
+        logs.push(`${card.name} burned (Exhausted)`);
     } else {
         newPlayer.discardPile.push(card);
     }
 
-    if (card.cardClass.includes(ClassTag.HOLY) || card.cardClass.includes(ClassTag[subclass as keyof typeof ClassTag])) {
+    if (card.cardClass.includes(ClassTag.HOLY) || card.cardClass.includes(ClassTag[subclass])) {
         applyStatus(newPlayer, StatusEffect.HOLY_FERVOR, 1, logs);
     }
 
@@ -924,7 +844,7 @@ export default function GameDemo() {
     }
   };
 
-  const handleCraftSelection = (card: ICard) => {
+  const handleCraftSelection = (card) => {
       if (!player) return;
       const newPlayer = { ...player };
       const newCard = { ...card, id: `${card.id}_${Date.now()}` };
@@ -962,12 +882,12 @@ export default function GameDemo() {
     newPlayer.hand = retainedCards; 
     setPlayer(newPlayer);
 
-    const queue = enemies.map(e => ({ enemyId: e.id, move: e.nextMove! }));
+    const queue = enemies.map(e => ({ enemyId: e.id, move: e.nextMove }));
     setActionQueue(queue);
     processNextAction(queue, newPlayer, enemies);
   };
 
-  const processNextAction = (currentQueue: {enemyId: string, move: IEnemyMove}[], currentPlayer: IPlayer, currentEnemies: IEnemy[]) => {
+  const processNextAction = (currentQueue, currentPlayer, currentEnemies) => {
       if (currentQueue.length === 0) {
           startPlayerTurn(currentPlayer, currentEnemies);
           return;
@@ -983,19 +903,31 @@ export default function GameDemo() {
       
       const newPlayer = { ...currentPlayer };
       const newEnemies = [...currentEnemies];
-      const activeEnemy = newEnemies.find(e => e.id === enemyId)!;
+      const activeEnemy = newEnemies.find(e => e.id === enemyId);
       
-      const currentActionLogs: string[] = []; // Collect events here
+      const currentActionLogs = []; // Collect events here
 
-      if (move.damage) {
-          // Apply scaling like Augment for Dragonfire
-          let finalDamage = move.damage;
-          if (move.statusScaling && move.statusScaling === ScalingFactor.AUGMENT) {
-              finalDamage += (activeEnemy.effects[StatusEffect.AUGMENT] || 0);
-          }
+      // --- DAMAGE CALCULATION BLOCK ---
+      let finalDamage = move.damage || 0;
+      
+      if (move.statusScaling && move.statusScaling === ScalingFactor.AUGMENT) {
+          finalDamage += (activeEnemy.effects[StatusEffect.AUGMENT] || 0);
+      } 
+      // Kobold Fanatic: Double remaining HP
+      else if (move.damageScaling === ScalingFactor.CURRENT_HP) {
+          finalDamage = activeEnemy.currentHealth * 2;
+      }
+      // Goblin Hunter: Discard Pile Size
+      else if (move.damageScaling === ScalingFactor.TARGET_DISCARD_PILE_COUNT) {
+          finalDamage = newPlayer.discardPile.length;
+      }
 
+      if (finalDamage > 0) {
           dealDamage({player: newPlayer, enemies: newEnemies}, activeEnemy, newPlayer, finalDamage, currentActionLogs);
       }
+
+      // --- END DAMAGE BLOCK ---
+
       if (move.statusEffects) {
           move.statusEffects.forEach(eff => {
              if (eff.status === StatusEffect.BLOCK) {
@@ -1007,7 +939,10 @@ export default function GameDemo() {
                  const amount = (activeEnemy.effects[StatusEffect.AUGMENT] || 0);
                  applyStatus(newPlayer, StatusEffect.BURNING, amount, currentActionLogs);
              }
-             else if (eff.status === StatusEffect.EVASION) applyStatus(activeEnemy, eff.status, eff.amount, currentActionLogs);
+             // Fix: Added BLOODTHIRST and RAGE to self-targeting effects
+             else if (eff.status === StatusEffect.EVASION || eff.status === StatusEffect.BLOODTHIRST || eff.status === StatusEffect.RAGE) {
+                 applyStatus(activeEnemy, eff.status, eff.amount, currentActionLogs);
+             }
              else applyStatus(newPlayer, eff.status, eff.amount, currentActionLogs);
           });
       }
@@ -1045,6 +980,20 @@ export default function GameDemo() {
                 }
             }
       }
+
+      // Add Card To Discard (Goblin Trap)
+      if (move.mechanic && move.mechanic.addCardToDiscard) {
+            const { cardId, count } = move.mechanic.addCardToDiscard;
+            const template = TOKEN_CARDS[cardId];
+            
+            if (template) {
+                for(let i=0; i<count; i++) {
+                    const newCard = { ...template, id: `${cardId}_${Date.now()}_${i}` };
+                    newPlayer.discardPile.push(newCard);
+                    currentActionLogs.push(`Added ${template.name} to Discard Pile`);
+                }
+            }
+      }
       
       // Self Damage (Immolation)
       if (move.mechanic && move.mechanic.dealDamageToSelf && move.mechanic.dealDamageToSelf.type === 'CurrentHP') {
@@ -1057,7 +1006,7 @@ export default function GameDemo() {
       if (activeEnemy.lastResortCooldown > 0) activeEnemy.lastResortCooldown--;
 
       setPlayer(newPlayer);
-      setEnemies(newEnemies);
+      setEnemies(newEnemies.filter(e => e.currentHealth > 0)); // Filter dead enemies
       
       setActiveEnemyAction({
           enemyName: activeEnemy.name,
@@ -1072,7 +1021,7 @@ export default function GameDemo() {
       if (activeEnemyAction && activeEnemyAction.events.length > 0) {
           activeEnemyAction.events.forEach(msg => {
               // Basic heuristics for type
-              let type: 'info' | 'damage' | 'block' | 'status' | 'heal' = 'info';
+              let type = 'info';
               if (msg.includes('damage')) type = 'damage';
               else if (msg.includes('Block') || msg.includes('Protection')) type = 'block';
               else if (msg.includes('Applied') || msg.includes('Enraged')) type = 'status';
@@ -1085,10 +1034,10 @@ export default function GameDemo() {
       const nextQueue = actionQueue.slice(1);
       setActionQueue(nextQueue);
       setActiveEnemyAction(null);
-      processNextAction(nextQueue, player!, enemies);
+      processNextAction(nextQueue, player, enemies);
   };
 
-  const startPlayerTurn = (p: IPlayer, es: IEnemy[]) => {
+  const startPlayerTurn = (p, es) => {
     const newPlayer = { ...p };
     const newEnemies = [...es];
 
@@ -1096,6 +1045,23 @@ export default function GameDemo() {
     newPlayer.energy = newPlayer.maxEnergy;
     const drawCount = 5 + (newPlayer.effects[StatusEffect.WISDOM] || 0);
     drawCards({player: newPlayer}, drawCount);
+
+    // --- HANDLE PASSIVE TRAP LOGIC (After Draw Phase) ---
+    const bindingTraps = newPlayer.hand.filter(c => c.id.includes('binding_trap'));
+    if (bindingTraps.length > 0) {
+        bindingTraps.forEach(() => {
+             // Find cards that are NOT the trap itself (to prevent trap eating trap loops for now, or just random)
+             const discardableIndices = newPlayer.hand.map((c, i) => i).filter(i => !newPlayer.hand[i].id.includes('binding_trap'));
+             
+             if (discardableIndices.length > 0) {
+                 const randIdx = discardableIndices[Math.floor(Math.random() * discardableIndices.length)];
+                 const discarded = newPlayer.hand.splice(randIdx, 1)[0];
+                 newPlayer.discardPile.push(discarded);
+                 addNotification(`Binding Trap discarded ${discarded.name}!`, 'damage');
+             }
+        });
+    }
+    // --- END PASSIVE TRAP LOGIC ---
     
     // RECKLESS NATURE LOGIC
     if (newPlayer.effects[StatusEffect.RECKLESS] && newPlayer.hand.length > 0) {
@@ -1108,7 +1074,7 @@ export default function GameDemo() {
         // Check if affordable
         if (newPlayer.energy >= reducedCost) {
              newPlayer.energy -= reducedCost;
-             const logs: string[] = [`Reckless Nature played ${cardToPlay.name}`];
+             const logs = [`Reckless Nature played ${cardToPlay.name}`];
              
              // Simple play logic simulation (only Damage & Status for now to avoid complexity)
              const g = { player: newPlayer, enemies: newEnemies };
@@ -1118,9 +1084,9 @@ export default function GameDemo() {
                  const target = newEnemies.length > 0 ? newEnemies[Math.floor(Math.random() * newEnemies.length)] : null;
                  if (target) {
                      if (cardToPlay.target === CardTarget.ALL) {
-                        newEnemies.forEach(e => dealDamage(g, newPlayer, e, cardToPlay.baseDamage!, logs));
+                        newEnemies.forEach(e => dealDamage(g, newPlayer, e, cardToPlay.baseDamage, logs));
                      } else {
-                        dealDamage(g, newPlayer, target, cardToPlay.baseDamage!, logs);
+                        dealDamage(g, newPlayer, target, cardToPlay.baseDamage, logs);
                      }
                  }
              }
@@ -1320,13 +1286,13 @@ export default function GameDemo() {
         COMMON_CRUSADER_CARDS.find(c => c.id === 'warcry'),
         COMMON_CRUSADER_CARDS.find(c => c.id === 'draw_steel'),
         COMMON_CRUSADER_CARDS.find(c => c.id === 'at_ready'),
-    ].filter(Boolean) as ICard[];
+    ].filter(Boolean);
     
     const draftPowers = [
         COMMON_CRUSADER_CARDS.find(c => c.id === 'iron_will'),
         COMMON_CRUSADER_CARDS.find(c => c.id === 'reckless_nature'),
         COMMON_CRUSADER_CARDS.find(c => c.id === 'weapon_master'),
-    ].filter(Boolean) as ICard[];
+    ].filter(Boolean);
 
     const isReady = draftSelections.skill && draftSelections.power;
 
@@ -1559,7 +1525,7 @@ export default function GameDemo() {
                 
                 {/* Status Effects - Simplified for Mobile */}
                 <div className="flex gap-1 flex-wrap max-w-[120px] md:max-w-md ml-2">
-                    {Object.entries(player!.effects).map(([k, v]) => (
+                    {Object.entries(player.effects).map(([k, v]) => (
                         <div key={k} className="bg-slate-950 px-1.5 py-0.5 rounded text-[10px] md:text-xs border border-slate-600 text-yellow-500 font-mono cursor-help relative group">
                             {k.substring(0,2)}:{v}
                             <span className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-black border border-slate-500 rounded hidden group-hover:block z-50 text-white normal-case font-sans">
@@ -1618,7 +1584,6 @@ export default function GameDemo() {
   }
 
   if (screen === 'REWARD') {
-    // ... existing reward code ...
     // Generate Rewards
     const common = COMMON_CRUSADER_CARDS[Math.floor(Math.random() * COMMON_CRUSADER_CARDS.length)];
     const common2 = COMMON_CRUSADER_CARDS[Math.floor(Math.random() * COMMON_CRUSADER_CARDS.length)];
@@ -1626,7 +1591,7 @@ export default function GameDemo() {
     const sub = subPool[Math.floor(Math.random() * subPool.length)];
     const rewards = [common, common2, sub];
 
-    const pickReward = (card: ICard) => {
+    const pickReward = (card) => {
         // Fixed: Generate unique ID for the new card
         const newCard = { ...card, id: `${card.id}_${Date.now()}` };
         const newDeck = [...deck, newCard];
@@ -1667,7 +1632,7 @@ export default function GameDemo() {
 
 // --- UI COMPONENTS ---
 
-const KeywordText = ({ text }: { text: string }) => {
+const KeywordText = ({ text }) => {
   // Helper to split text and wrap keywords
   const parts = text.split(/(\b(?:Block|Vulnerable|Weak|Strength|Bleed|Poison|Burn|Evasion|Holy Fervor|Stun|Confusion|Tenacity|Protection|Innate|Volatile|Retain|Ranged|Exhaust|Mill|Augment|Dispel|Thorns|Rage|Bloodthirst|Entangled|Blighted|Lifevamp|Regen|Gestating|Debuff|Reckless|Weapon Mastery)\b)/gi);
   
@@ -1693,7 +1658,7 @@ const KeywordText = ({ text }: { text: string }) => {
   );
 };
 
-const CardView = ({ card, selected, playable = true, costDisplay, onClick }: { card: ICard, selected?: boolean, playable?: boolean, costDisplay?: number, onClick?: () => void }) => {
+const CardView = ({ card, selected, playable = true, costDisplay, onClick }) => {
   const border = card.rarity === CardRarity.COMMON ? 'border-slate-400' : card.rarity === CardRarity.TOKEN ? 'border-yellow-200' : 'border-purple-500';
   const displayCost = costDisplay !== undefined ? costDisplay : card.cost;
   const costColor = displayCost > card.cost ? 'text-red-500' : displayCost < card.cost ? 'text-green-400' : 'text-white';
@@ -1713,7 +1678,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick }: { c
       
       {/* Image Placeholder */}
       <div className="flex-1 bg-slate-700 rounded mb-1 md:mb-2 flex items-center justify-center text-slate-500">
-        {card.type === CardType.ATTACK ? <Sword className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-4 h-4 md:w-5 md:h-5" /> : <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />}
+        {card.type === CardType.ATTACK ? <Sword className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.TRAP ? <Anchor className="w-4 h-4 md:w-5 md:h-5" /> : <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />}
       </div>
       
       {/* Description */}
@@ -1729,6 +1694,6 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick }: { c
   );
 };
 
-function ShirtIcon(props: any) {
+function ShirtIcon(props) {
     return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>
 }
