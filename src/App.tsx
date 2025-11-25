@@ -368,10 +368,22 @@ const COMMON_CRUSADER_CARDS = [
   }),
   createCard({ id: 'divine_ward', name: 'Divine Ward', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Gain 2 Protection.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.PROTECTION, 2, logs) }),
   createCard({ id: 'holy_smite', name: 'Holy Smite', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal dmg equal to Holy Fervor.', baseDamage: 0, effect: (g, tid, logs) => { const dmg = g.player.effects[StatusEffect.HOLY_FERVOR] || 0; dealDamage(g, g.player, getEnemy(g, tid), dmg, logs || []); g.player.effects[StatusEffect.HOLY_FERVOR] = 0; } }),
-  createCard({ id: 'battle_trance', name: 'Battle Trance', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Condition: Hand only Attacks. Gain 2 Energy.', effect: (g, tid, logs) => {
-      const onlyAttacks = g.player.hand.every((c) => c.type === CardType.ATTACK || c.id === 'battle_trance');
-      if (onlyAttacks) g.player.energy += 2; 
-  }}), 
+  // UPDATED: Battle Trance
+  createCard({ 
+      id: 'battle_trance', 
+      name: 'Battle Trance', 
+      type: CardType.SKILL, 
+      cost: 0, 
+      rarity: CardRarity.COMMON, 
+      cardClass: [ClassTag.CRUSADER], 
+      target: CardTarget.SELF, 
+      description: 'Condition: Hand only Attacks. Gain 2 Energy.', 
+      effect: (g, tid, logs) => {
+          // The check is done in playCard before execution.
+          g.player.energy += 2; 
+          logs.push("Battle Trance grants 2 Energy.");
+      }
+  }), 
   createCard({ id: 'iron_will', name: 'Iron Will', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 2 Tenacity.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.TENACITY, 2, logs) }),
   createCard({ id: 'reckless_nature', name: 'Reckless Nature', type: CardType.POWER, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Start of Turn: Play first drawn card for -1 Energy.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.RECKLESS, 1, logs) }),
   createCard({ id: 'weapon_master', name: 'Weapon Master', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Doubles Main/Off Hand passive effects.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WEAPON_MASTERY, 1, logs) }),
@@ -485,7 +497,7 @@ const MINIONS_DB = {
     moves: [
       { id: 'slam', name: 'Body Slam', description: 'Deal 10 Dmg', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 10 },
       { id: 'croak', name: 'Croak', description: 'Gain 8 Block', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, statusEffects: [{status: StatusEffect.BLOCK, amount: 8}] },
-      { id: 'gobble', name: 'Gobble', description: 'Heal 20 HP', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.SPECIAL, cooldown: 3, mechanic: { restoreHp: { amount: 20, type: 'Fixed' } } } 
+      { id: 'gobble', name: 'Gobble', description: 'Heal 20 HP & Eat 2 Discard', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.SPECIAL, cooldown: 3, mechanic: { restoreHp: { amount: 20, type: 'Fixed' }, burnCards: { source: 'DiscardPile', count: 2 } } } 
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'wolf_spider': {
@@ -521,7 +533,7 @@ const MINIONS_DB = {
     moves: [
       { id: 'glide', name: 'Gliding Strike', description: '6 Dmg', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 6 },
       { id: 'spit', name: 'Spitfire', description: '6 Dmg + 1 Burn', category: EnemyMoveCategory.TACTIC, intentType: IntentType.ATTACK, damage: 6, statusEffects: [{status: StatusEffect.BURN, amount: 1, target: 'Player'}] },
-      { id: 'rage', name: 'Dragon Rage', description: 'Act Twice Next Turn', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.BUFF, cooldown: 1, mechanic: { executeMoves: ['gliding_strike', 'spitfire'] } }
+      { id: 'rage', name: 'Dragon Rage', description: 'Execute Gliding Strike then Spitfire', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.BUFF, mechanic: { executeMoves: ['glide', 'spit'] } }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'goblin_scout': {
@@ -818,10 +830,12 @@ export default function GameDemo() {
     const actualCost = getCardCost(card, player);
     if (player.energy < actualCost) return;
     
-    if (card.id === 'battle_trance') {
-         const onlyAttacks = player.hand.every(c => c.type === CardType.ATTACK || c.id === 'battle_trance');
-         if (!onlyAttacks) {
-             setCombatLog(prev => [...prev, `Cannot play ${card.name}: Hand contains non-Attacks.`]);
+    // BATTLE TRANCE CHECK: Must have ONLY attacks in hand (excluding self)
+    if (card.name === 'Battle Trance') {
+         const otherCards = player.hand.filter(c => c.id !== card.id);
+         const hasNonAttack = otherCards.some(c => c.type !== CardType.ATTACK);
+         if (hasNonAttack) {
+             addNotification("Battle Trance requires only Attacks in hand!", 'info');
              return;
          }
     }
@@ -1150,6 +1164,43 @@ export default function GameDemo() {
             currentActionLogs.push(`${activeEnemy.name} sacrifices itself!`);
       }
 
+      // Handle Mechanic: Execute Moves (Dragon Rage)
+      if (move.mechanic && move.mechanic.executeMoves) {
+          const movesToExec = move.mechanic.executeMoves; // Array of move IDs
+          const extraActions = movesToExec.map(mid => {
+              const moveDef = activeEnemy.moves.find(m => m.id === mid);
+              return moveDef ? { enemyId: activeEnemy.id, move: moveDef } : null;
+          }).filter(Boolean);
+
+          if (extraActions.length > 0) {
+              // Prepend these actions to the remaining queue
+              const nextQueue = currentQueue.slice(1);
+              const newQueue = [...extraActions, ...nextQueue];
+              
+              // We modify the queue state so that when the current action is dismissed, the extra actions are processed first
+              setActionQueue(newQueue); 
+              
+              // IMPORTANT: We do NOT processNextAction here because we are currently IN processNextAction.
+              // The UI will show the "Dragon Rage" alert. When the user clicks dismiss, `handleDismissAction` will be called.
+              // However, `handleDismissAction` normally slices the *current state* queue.
+              // Since we updated the state queue here, we need to make sure `handleDismissAction` works correctly.
+              // But wait, `handleDismissAction` uses the state `actionQueue`. 
+              
+              // The standard flow is: processNextAction(queue) -> setActiveEnemyAction -> User Click Dismiss -> handleDismissAction -> processNextAction(nextQueue).
+              
+              // If I modify `setActionQueue` here, the `handleDismissAction` will see the new queue.
+              // But `handleDismissAction` does `actionQueue.slice(1)`.
+              // The current queue head is "Rage". The new queue head is "Glide".
+              // So the new queue looks like: [Glide, Spit, NextEnemy].
+              // BUT `handleDismissAction` assumes the head is the *finished* action (Rage).
+              // So we need to keep "Rage" at the head of the state queue until dismissal.
+              
+              // Correct approach:
+              // setActionQueue([currentQueue[0], ...extraActions, ...currentQueue.slice(1)]);
+              setActionQueue([currentQueue[0], ...extraActions, ...currentQueue.slice(1)]);
+          }
+      }
+
 
       if (activeEnemy.lastResortCooldown > 0) activeEnemy.lastResortCooldown--;
 
@@ -1162,7 +1213,16 @@ export default function GameDemo() {
           description: move.description,
           events: currentActionLogs
       });
-      setActionQueue(currentQueue);
+      // Note: We only update the queue for normal recursive calls here if we didn't modify it specially above.
+      // If it's a standard move, the queue state was set at start of turn.
+      // Actually, `processNextAction` is recursive and purely functional based on its argument `currentQueue`.
+      // The state `actionQueue` is primarily for the UI to know what's happening or for resume?
+      // Actually `handleDismissAction` uses `actionQueue` state.
+      // So we must ensure `actionQueue` state matches the current reality.
+      
+      if (!move.mechanic?.executeMoves) {
+          setActionQueue(currentQueue);
+      }
   };
 
   const handleDismissAction = () => {
@@ -1179,6 +1239,7 @@ export default function GameDemo() {
           });
       }
       
+      // Proceed to next action
       const nextQueue = actionQueue.slice(1);
       setActionQueue(nextQueue);
       setActiveEnemyAction(null);
@@ -1187,7 +1248,7 @@ export default function GameDemo() {
 
   const startPlayerTurn = (p, es) => {
     const newPlayer = { ...p };
-    const newEnemies = [...es];
+    const newEnemies = [...es]; // Shallow copy
 
     newPlayer.block = 0;
     newPlayer.energy = newPlayer.maxEnergy;
@@ -1245,7 +1306,7 @@ export default function GameDemo() {
                  logs.push(`Gained ${b} Block`);
              }
              if (cardToPlay.effect) {
-                 cardToPlay.effect(g, undefined, logs);
+                 cardToPlay.effect(g, undefined, logs, cardToPlay); // Fixed: Passed cardToPlay as source (4th arg)
              }
 
              // Move to discard
@@ -1272,10 +1333,21 @@ export default function GameDemo() {
         }
     });
 
-    newEnemies.forEach(e => updateEnemyIntent(e, turn + 1, newPlayer));
+    // Check for victory immediately after start-of-turn effects (Reckless, Burn, Bleed)
+    if (newEnemies.every(e => e.currentHealth <= 0)) {
+        setPlayer(newPlayer);
+        setEnemies(newEnemies);
+        setTimeout(() => setScreen('REWARD'), 1000);
+        return;
+    }
+
+    // Filter out dead enemies so they don't act or display with negative HP
+    const aliveEnemies = newEnemies.filter(e => e.currentHealth > 0);
+
+    aliveEnemies.forEach(e => updateEnemyIntent(e, turn + 1, newPlayer));
 
     setPlayer(newPlayer);
-    setEnemies(newEnemies);
+    setEnemies(aliveEnemies);
     setTurn(turn + 1);
 
     if (newPlayer.currentHealth <= 0) {
@@ -1757,7 +1829,17 @@ export default function GameDemo() {
                 {player?.hand.map((card, idx) => (
                 <div key={idx} onClick={() => card.target === CardTarget.SINGLE ? setSelectedCard(selectedCard === card ? null : card) : playCard(card)} 
                     className={`flex-shrink-0 transform transition-all duration-200 hover:-translate-y-8 md:hover:-translate-y-12 hover:scale-105 z-0 hover:z-10 ${selectedCard === card ? '-translate-y-8 md:-translate-y-12 ring-4 ring-yellow-400 rounded-xl z-10' : ''} ${player?.costModifiers.some(m => !m.cardType || m.cardType === card.type) ? 'ring-2 ring-red-500' : ''}`}>
-                    <CardView card={card} playable={player.energy >= getCardCost(card, player)} costDisplay={getCardCost(card, player)} />
+                    <CardView card={card} playable={
+                      // Check playability
+                      (() => {
+                        if (player.energy < getCardCost(card, player)) return false;
+                        if (card.name === 'Battle Trance') {
+                             const otherCards = player.hand.filter(c => c.id !== card.id);
+                             return otherCards.every(c => c.type === CardType.ATTACK);
+                        }
+                        return true;
+                      })()
+                    } costDisplay={getCardCost(card, player)} />
                 </div>
                 ))}
             </div>
@@ -1871,6 +1953,15 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick }) => 
       {/* Description - REMOVED overflow-hidden */}
       <div className="text-[8px] md:text-[10px] text-center text-slate-300 leading-tight h-8 md:h-12 relative">
         <KeywordText text={card.description} />
+      </div>
+
+      {/* Classes */}
+      <div className="flex justify-center gap-1 flex-wrap mb-1 px-1">
+          {card.cardClass?.map((c, i) => (
+              <span key={i} className="text-[6px] uppercase font-bold text-slate-400 bg-slate-900/50 px-1 rounded">
+                  {c}
+              </span>
+          ))}
       </div>
       
       {/* Footer */}
