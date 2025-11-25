@@ -3,7 +3,7 @@ import {
   Sword, Shield, Skull, Heart, Zap, 
   ChevronRight, RefreshCw, BookOpen, 
   Flame, Droplets, AlertTriangle, Target, 
-  Ghost, Cross, User, ArrowRight, Play, Plus, Layers, X, Info, Package, Bell, Trash2, Anchor
+  Ghost, Cross, User, ArrowRight, Play, Plus, Layers, X, Info, Package, Bell, Trash2, Anchor, Check
 } from 'lucide-react';
 
 // --- CONSTANTS & TYPES ---
@@ -293,7 +293,14 @@ const dealDamage = (g, source, target, amount, logs) => {
 
 const BLESSING_CARDS = [
   createCard({ id: 'samson', name: "Samson's Strength", type: CardType.SKILL, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Gain 2 Strength.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.STRENGTH, 2, logs) }),
-  createCard({ id: 'david', name: "King David's Courage", type: CardType.SKILL, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Random card in hand costs 0.', effect: (g, tid, logs) => { if(g.player.hand.length > 0) { const c = g.player.hand[Math.floor(Math.random()*g.player.hand.length)]; c.cost = 0; if(logs) logs.push(`${c.name} costs 0`); } } }), 
+  createCard({ id: 'david', name: "King David's Courage", type: CardType.SKILL, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Random card in hand costs 0.', effect: (g, tid, logs, src) => { 
+      const valid = g.player.hand.filter(c => c.id !== src.id);
+      if(valid.length > 0) { 
+          const c = valid[Math.floor(Math.random()*valid.length)]; 
+          c.cost = 0; 
+          if(logs) logs.push(`${c.name} costs 0`); 
+      } 
+  } }), 
   createCard({ id: 'solomon', name: "Solomon's Wisdom", type: CardType.POWER, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Draw +1 card each turn.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WISDOM, 1, logs) }) 
 ];
 
@@ -317,10 +324,13 @@ const COMMON_CRUSADER_CARDS = [
   createCard({ id: 'strike', name: 'Strike', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 5 Damage.', baseDamage: 5 }),
   createCard({ id: 'warcry', name: 'Warcry', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 1 Strength.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.STRENGTH, 1, logs) }),
   createCard({ id: 'bash', name: 'Bash', type: CardType.ATTACK, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 8 Damage. Apply 2 Vulnerable.', baseDamage: 8, effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.VULNERABLE, 2, logs) }),
-  createCard({ id: 'draw_steel', name: 'Draw Steel', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Discard 1 random card. Draw 1 Attack.', effect: (g, tid, logs) => { 
-      if (g.player.hand.length > 0) {
-        const discardIdx = Math.floor(Math.random() * g.player.hand.length);
-        g.player.discardPile.push(g.player.hand.splice(discardIdx, 1)[0]);
+  createCard({ id: 'draw_steel', name: 'Draw Steel', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Discard 1 random card. Draw 1 Attack.', effect: (g, tid, logs, src) => { 
+      const valid = g.player.hand.filter(c => c.id !== src.id);
+      if (valid.length > 0) {
+        const discardIdx = Math.floor(Math.random() * valid.length);
+        const target = valid[discardIdx];
+        const realIdx = g.player.hand.findIndex(c => c.id === target.id);
+        if (realIdx > -1) g.player.discardPile.push(g.player.hand.splice(realIdx, 1)[0]);
       }
       const atk = g.player.drawPile.find((c) => c.type === CardType.ATTACK);
       if (atk) {
@@ -328,7 +338,34 @@ const COMMON_CRUSADER_CARDS = [
          g.player.hand.push(atk);
       }
   }}),
-  createCard({ id: 'at_ready', name: 'At Ready', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 4 Block. Draw 1.', baseBlock: 4, effect: (g) => drawCards(g, 1) }),
+  // UPDATED: At Ready - Triggers Selection UI
+  createCard({ 
+      id: 'at_ready', 
+      name: 'At Ready', 
+      type: CardType.SKILL, 
+      rarity: CardRarity.COMMON, 
+      cardClass: [ClassTag.CRUSADER], 
+      target: CardTarget.SELF, 
+      description: 'Choose 2 Attacks in your discard pile. Shuffle them into your deck.', 
+      effect: (g, tid, logs) => {
+         return {
+             action: 'SELECT',
+             filter: (c) => c.type === CardType.ATTACK,
+             source: 'DISCARD',
+             count: 2,
+             title: 'Choose 2 Attacks to Shuffle',
+             logic: (gState, selectedCards, currentLogs) => {
+                 // Filter out the selected cards from discard pile
+                 gState.player.discardPile = gState.player.discardPile.filter(c => !selectedCards.some(s => s.id === c.id));
+                 // Add them to draw pile
+                 gState.player.drawPile.push(...selectedCards);
+                 // Shuffle
+                 gState.player.drawPile.sort(() => Math.random() - 0.5);
+                 currentLogs.push(`Shuffled ${selectedCards.map(c => c.name).join(', ')} into deck.`);
+             }
+         };
+      }
+  }),
   createCard({ id: 'divine_ward', name: 'Divine Ward', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Gain 2 Protection.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.PROTECTION, 2, logs) }),
   createCard({ id: 'holy_smite', name: 'Holy Smite', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal dmg equal to Holy Fervor.', baseDamage: 0, effect: (g, tid, logs) => { const dmg = g.player.effects[StatusEffect.HOLY_FERVOR] || 0; dealDamage(g, g.player, getEnemy(g, tid), dmg, logs || []); g.player.effects[StatusEffect.HOLY_FERVOR] = 0; } }),
   createCard({ id: 'battle_trance', name: 'Battle Trance', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Condition: Hand only Attacks. Gain 2 Energy.', effect: (g, tid, logs) => {
@@ -339,10 +376,13 @@ const COMMON_CRUSADER_CARDS = [
   createCard({ id: 'reckless_nature', name: 'Reckless Nature', type: CardType.POWER, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Start of Turn: Play first drawn card for -1 Energy.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.RECKLESS, 1, logs) }),
   createCard({ id: 'weapon_master', name: 'Weapon Master', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Doubles Main/Off Hand passive effects.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WEAPON_MASTERY, 1, logs) }),
   createCard({ id: 'pray', name: 'Pray', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Craft 1 Blessing and shuffle into deck.', effect: (g) => { return { action: 'CRAFT', options: BLESSING_CARDS }; } }),
-  createCard({ id: 'in_nomine', name: 'In nomine patris', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Discard 1. Draw 1 Holy.', volatile: true, effect: (g, tid, logs) => {
-      if (g.player.hand.length > 0) {
-        const discardIdx = Math.floor(Math.random() * g.player.hand.length);
-        g.player.discardPile.push(g.player.hand.splice(discardIdx, 1)[0]);
+  createCard({ id: 'in_nomine', name: 'In nomine patris', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Discard 1. Draw 1 Holy.', volatile: true, effect: (g, tid, logs, src) => {
+      const valid = g.player.hand.filter(c => c.id !== src.id);
+      if (valid.length > 0) {
+        const discardIdx = Math.floor(Math.random() * valid.length);
+        const target = valid[discardIdx];
+        const realIdx = g.player.hand.findIndex(c => c.id === target.id);
+        if (realIdx > -1) g.player.discardPile.push(g.player.hand.splice(realIdx, 1)[0]);
       }
       const holy = g.player.drawPile.find((c) => c.cardClass.includes(ClassTag.HOLY));
       if (holy) {
@@ -377,7 +417,35 @@ const COMMON_CRUSADER_CARDS = [
 const KNIGHT_CARDS = [
   createCard({ id: 'shield_block', name: 'Shield Block', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Gain 6 Block. Draw 1.', baseBlock: 6, effect: (g) => drawCards(g, 1) }),
   createCard({ id: 'shield_bash', name: 'Shield Bash', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SINGLE, description: 'Deal Dmg equal to Block.', baseDamage: 0, effect: (g, tid, logs) => dealDamage(g, g.player, getEnemy(g, tid), g.player.block, logs || []) }),
-  createCard({ id: 'hold_fast', name: 'Hold Fast', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Give Retain to 1 card in hand.', effect: (g) => { if(g.player.hand.length>0) g.player.hand[0].retain = true; } }),
+  // UPDATED: Hold Fast - Uses Selection
+  createCard({ 
+      id: 'hold_fast', 
+      name: 'Hold Fast', 
+      type: CardType.SKILL, 
+      rarity: CardRarity.COMMON, 
+      cardClass: [ClassTag.KNIGHT], 
+      target: CardTarget.SELF, 
+      description: 'Choose 1 card in hand to Retain.', 
+      effect: (g, tid, logs) => { 
+          return {
+            action: 'SELECT',
+            filter: (c) => true,
+            source: 'HAND',
+            count: 1,
+            title: 'Select a card to Retain',
+            logic: (gState, selectedCards, currentLogs) => {
+                if (selectedCards.length > 0) {
+                    // Must find the card instance in the new hand state
+                    const target = gState.player.hand.find(c => c.id === selectedCards[0].id);
+                    if (target) {
+                        target.retain = true;
+                        currentLogs.push(`${target.name} is being Retained.`);
+                    }
+                }
+            }
+        };
+      } 
+  }),
 ];
 
 const ZEALOT_CARDS = [
@@ -469,7 +537,8 @@ const MINIONS_DB = {
     id: 'goblin_hunter', name: 'Goblin Hunter', maxHealth: 35, currentHealth: 35, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.B,
     description: "A cunning trapper.",
     moves: [
-      { id: 'trick', name: 'Cheap Trick', description: 'Mill 2 Cards', category: EnemyMoveCategory.BASE, intentType: IntentType.DEBUFF },
+      // Updated: Added mechanic to Mill
+      { id: 'trick', name: 'Cheap Trick', description: 'Mill 2 Cards', category: EnemyMoveCategory.BASE, intentType: IntentType.DEBUFF, mechanic: { mill: { count: 2 } } },
       { id: 'trap', name: 'Set Trap', description: 'Shuffle Binding Trap into Discard', category: EnemyMoveCategory.TACTIC, intentType: IntentType.DEBUFF, mechanic: { addCardToDiscard: { cardId: 'binding_trap', count: 1 } } },
       { id: 'booby', name: 'Booby Trap', description: 'Dmg = Discard Size', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 5, damageScaling: ScalingFactor.TARGET_DISCARD_PILE_COUNT } 
     ], lastResortCooldown: 0, hasUsedLastResort: false
@@ -566,6 +635,10 @@ export default function GameDemo() {
   const [activeEnemyAction, setActiveEnemyAction] = useState(null);
   const [actionQueue, setActionQueue] = useState([]);
   const [craftingOptions, setCraftingOptions] = useState(null);
+  // New: Card Selection State
+  const [cardSelection, setCardSelection] = useState(null);
+  const [tempSelection, setTempSelection] = useState([]);
+
   // Updated draft selection state
   const [draftSelections, setDraftSelections] = useState({skill:null, power:null});
   const [notifications, setNotifications] = useState([]);
@@ -786,10 +859,17 @@ export default function GameDemo() {
         newPlayer.block += block;
         logs.push(`Gained ${block} Block`);
     }
+    
+    // --- HANDLE CARD EFFECT ---
+    let selectionRequest = null;
     if (card.effect) {
-        const result = card.effect(g, targetId, logs);
-        if (result && result.action === 'CRAFT') {
-            setCraftingOptions(result.options);
+        const result = card.effect(g, targetId, logs, card); // Fixed: Pass card as source
+        if (result) {
+            if (result.action === 'CRAFT') {
+                setCraftingOptions(result.options);
+            } else if (result.action === 'SELECT') {
+                selectionRequest = result;
+            }
         }
     }
 
@@ -806,12 +886,11 @@ export default function GameDemo() {
         applyStatus(newPlayer, StatusEffect.HOLY_FERVOR, 1, logs);
     }
 
-    // Check for Enemy Death to trigger OnAllyDeath for Fire Ritual
+    // Check for Enemy Death
     const deadEnemies = g.enemies.filter(e => e.currentHealth <= 0);
     if (deadEnemies.length > 0) {
         g.enemies.forEach(survivor => {
             if (survivor.currentHealth > 0 && survivor.moves.some(m => m.mechanic && m.mechanic.triggerCondition === 'OnAllyDeath')) {
-                // Kobold Shaman Logic: Gain 6 Augment & 6 Block
                 applyStatus(survivor, StatusEffect.AUGMENT, 6, logs);
                 survivor.block += 6;
                 logs.push(`${survivor.name} gained 6 Augment & 6 Block (Fire Ritual)`);
@@ -821,6 +900,34 @@ export default function GameDemo() {
 
     setPlayer(newPlayer);
     setSelectedCard(null);
+
+    // --- HANDLE SELECTION UI TRIGGER ---
+    if (selectionRequest) {
+        // Fetch candidates based on source
+        let candidates = [];
+        if (selectionRequest.source === 'DISCARD') {
+            candidates = newPlayer.discardPile.filter(selectionRequest.filter);
+        } else if (selectionRequest.source === 'HAND') {
+            candidates = newPlayer.hand.filter(selectionRequest.filter);
+        }
+
+        if (candidates.length === 0) {
+            addNotification("No valid targets for selection.", 'info');
+        } else if (candidates.length <= selectionRequest.count) {
+            // Auto-select if not enough cards to choose
+            const autoLog = [];
+            selectionRequest.logic({ player: newPlayer, enemies }, candidates, autoLog);
+            autoLog.forEach(l => addNotification(l, 'info'));
+            setPlayer({...newPlayer}); // Re-save state after logic
+        } else {
+            // Open UI
+            setCardSelection({
+                ...selectionRequest,
+                candidates: candidates
+            });
+            setTempSelection([]);
+        }
+    }
 
     const updatedEnemies = g.enemies.filter(e => e.currentHealth > 0);
     updatedEnemies.forEach(e => {
@@ -842,6 +949,22 @@ export default function GameDemo() {
       setPlayer(newPlayer);
       setTimeout(() => setScreen('REWARD'), 1000);
     }
+  };
+
+  const handleSelectionComplete = () => {
+      if (!cardSelection || !player) return;
+      
+      const selectedCards = cardSelection.candidates.filter(c => tempSelection.includes(c.id));
+      const newPlayer = { ...player }; // Clone state
+      const logs = [];
+      
+      // Run the logic defined by the card
+      cardSelection.logic({ player: newPlayer, enemies }, selectedCards, logs);
+      
+      logs.forEach(l => addNotification(l, 'info'));
+      setPlayer(newPlayer);
+      setCardSelection(null);
+      setTempSelection([]);
   };
 
   const handleCraftSelection = (card) => {
@@ -993,6 +1116,31 @@ export default function GameDemo() {
                     currentActionLogs.push(`Added ${template.name} to Discard Pile`);
                 }
             }
+      }
+
+      // Handle Mechanic: Mill (Cheap Trick)
+      if (move.mechanic && move.mechanic.mill) {
+          const { count } = move.mechanic.mill;
+          const milledCards = [];
+          
+          for(let i=0; i<count; i++) {
+              // Reshuffle if empty
+              if (newPlayer.drawPile.length === 0) {
+                  if (newPlayer.discardPile.length === 0) break;
+                  newPlayer.drawPile = [...newPlayer.discardPile].sort(() => Math.random() - 0.5);
+                  newPlayer.discardPile = [];
+              }
+              
+              const card = newPlayer.drawPile.pop();
+              if (card) {
+                  newPlayer.discardPile.push(card);
+                  milledCards.push(card.name);
+              }
+          }
+          
+          if (milledCards.length > 0) {
+              currentActionLogs.push(`Milled: ${milledCards.join(', ')}`);
+          }
       }
       
       // Self Damage (Immolation)
@@ -1427,6 +1575,42 @@ export default function GameDemo() {
             </div>
         )}
 
+        {/* CARD SELECTION OVERLAY */}
+        {cardSelection && (
+            <div className="absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center animate-fade-in p-8">
+                <div className="w-full max-w-5xl flex flex-col items-center">
+                    <h2 className="text-2xl md:text-4xl font-serif text-yellow-400 mb-4 text-center">{cardSelection.title}</h2>
+                    <p className="text-slate-400 mb-8 text-center">Select {cardSelection.count} {cardSelection.count === 1 ? 'card' : 'cards'}. ({tempSelection.length}/{cardSelection.count})</p>
+                    
+                    <div className="flex flex-wrap justify-center gap-4 mb-8">
+                        {cardSelection.candidates.map(card => {
+                            const isSelected = tempSelection.includes(card.id);
+                            return (
+                                <div key={card.id} onClick={() => {
+                                    if (isSelected) {
+                                        setTempSelection(prev => prev.filter(id => id !== card.id));
+                                    } else if (tempSelection.length < cardSelection.count) {
+                                        setTempSelection(prev => [...prev, card.id]);
+                                    }
+                                }} className={`cursor-pointer transition-transform hover:scale-105 scale-90 md:scale-100 relative`}>
+                                    <CardView card={card} selected={isSelected} />
+                                    {isSelected && <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/30 rounded-xl"><Check className="text-white w-12 h-12 drop-shadow-lg" /></div>}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <button 
+                        disabled={tempSelection.length !== cardSelection.count}
+                        onClick={handleSelectionComplete}
+                        className="px-8 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold rounded text-xl transition-all flex items-center gap-2"
+                    >
+                        Confirm Selection <Check />
+                    </button>
+                </div>
+            </div>
+        )}
+
         {/* ENEMY ACTION OVERLAY */}
         {activeEnemyAction && (
             <div className="absolute inset-0 bg-black/60 z-50 flex flex-col items-center justify-center animate-in fade-in duration-300 p-4">
@@ -1585,8 +1769,11 @@ export default function GameDemo() {
 
   if (screen === 'REWARD') {
     // Generate Rewards
-    const common = COMMON_CRUSADER_CARDS[Math.floor(Math.random() * COMMON_CRUSADER_CARDS.length)];
-    const common2 = COMMON_CRUSADER_CARDS[Math.floor(Math.random() * COMMON_CRUSADER_CARDS.length)];
+    // Fix: Filter out "Strike" from the reward pool so players get new cards
+    const rewardPool = COMMON_CRUSADER_CARDS.filter(c => c.id !== 'strike');
+    
+    const common = rewardPool[Math.floor(Math.random() * rewardPool.length)];
+    const common2 = rewardPool[Math.floor(Math.random() * rewardPool.length)];
     const subPool = subclass === 'KNIGHT' ? KNIGHT_CARDS : subclass === 'ZEALOT' ? ZEALOT_CARDS : INQUISITOR_CARDS;
     const sub = subPool[Math.floor(Math.random() * subPool.length)];
     const rewards = [common, common2, sub];
@@ -1681,8 +1868,8 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick }) => 
         {card.type === CardType.ATTACK ? <Sword className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.TRAP ? <Anchor className="w-4 h-4 md:w-5 md:h-5" /> : <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />}
       </div>
       
-      {/* Description */}
-      <div className="text-[8px] md:text-[10px] text-center text-slate-300 leading-tight overflow-hidden h-8 md:h-12">
+      {/* Description - REMOVED overflow-hidden */}
+      <div className="text-[8px] md:text-[10px] text-center text-slate-300 leading-tight h-8 md:h-12 relative">
         <KeywordText text={card.description} />
       </div>
       
