@@ -40,7 +40,7 @@ const StatusEffect = {
   EVASION: 'Evasion',
   HOLY_FERVOR: 'Holy Fervor',
   STUN: 'Stun',
-  CONFUSION: 'Confusion',
+  DAZED: 'Dazed', // Renamed from CONFUSION
   TENACITY: 'Tenacity',
   PROTECTION: 'Protection',
   RAGE: 'Rage',
@@ -64,7 +64,7 @@ const DEBUFFS = [
     StatusEffect.POISON,
     StatusEffect.BURN,
     StatusEffect.STUN,
-    StatusEffect.CONFUSION,
+    StatusEffect.DAZED, // Updated
     StatusEffect.ENTANGLED,
     StatusEffect.BLIGHTED
 ];
@@ -149,7 +149,7 @@ const KEYWORDS = {
   "Evasion": "Negates the next Attack received. Consumes 1 stack.",
   "Holy Fervor": "Crusader resource. Does not decay. Used to scale specific cards.",
   "Stun": "Unit cannot act for a turn.",
-  "Confusion": "Draw X less cards at the start of next turn.",
+  "Dazed": "Draw X less cards at the start of next turn.", // Updated Description
   "Tenacity": "Increases Block gained from cards by X.",
   "Protection": "Negates the next Debuff applied to the unit.",
   "Innate": "Start with this card in your opening hand.",
@@ -543,9 +543,11 @@ const MINIONS_DB = {
     id: 'wolf_spider', name: 'Giant Wolf-Spider', maxHealth: 48, currentHealth: 48, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.A,
     description: "A horrific, overgrown arachnid that entraps its prey before consuming it.",
     moves: [
-      { id: 'bite', name: 'Venomous Bite', description: '5 Dmg + 2 Poison', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 5, statusEffects: [{status: StatusEffect.POISON, amount: 2, target: 'Player'}] },
-      { id: 'web', name: 'Spit Web', description: 'Apply Entangled', category: EnemyMoveCategory.TACTIC, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.ENTANGLED, amount: 1, target: 'Player'}] },
-      { id: 'cocoon', name: 'Web Cocoon', description: 'Gain 10 Block', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.DEFEND, cooldown: 2, statusEffects: [{status: StatusEffect.BLOCK, amount: 10}] } 
+      // UPDATED: Spit Web is now BASE
+      { id: 'web', name: 'Spit Web', description: 'Apply Entangled', category: EnemyMoveCategory.BASE, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.ENTANGLED, amount: 1, target: 'Player'}] },
+      // UPDATED: Venomous Bite is now TACTIC (5 Dmg + 5 Block + 5 Poison)
+      { id: 'bite', name: 'Venomous Bite', description: '5 Dmg + 5 Block + 5 Poison', category: EnemyMoveCategory.TACTIC, intentType: IntentType.ATTACK, damage: 5, statusEffects: [{status: StatusEffect.POISON, amount: 5, target: 'Player'}, {status: StatusEffect.BLOCK, amount: 5}] },
+      { id: 'cocoon', name: 'Web Cocoon', description: 'Gain 10 Block. Exhaust 3 Discards.', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.DEFEND, cooldown: 2, statusEffects: [{status: StatusEffect.BLOCK, amount: 10}], mechanic: { burnCards: { source: 'DiscardPile', count: 3 } } } 
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'kobold_fanatic': {
@@ -610,7 +612,8 @@ const MINIONS_DB = {
     id: 'brown_bear', name: 'Brown Bear', maxHealth: 80, currentHealth: 80, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.S,
     description: "A territorial beast driven to a frenzy.",
     moves: [
-      { id: 'maul', name: 'Maul', description: '8 Dmg + Confusion', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 8, statusEffects: [{status: StatusEffect.CONFUSION, amount: 1, target: 'Player'}] },
+      // Updated: Confusion -> Dazed
+      { id: 'maul', name: 'Maul', description: '8 Dmg + Dazed', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 8, statusEffects: [{status: StatusEffect.DAZED, amount: 1, target: 'Player'}] },
       { id: 'fury', name: 'Fury', description: 'Gain Rage', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, statusEffects: [{status: StatusEffect.RAGE, amount: 1}] },
       { id: 'cornered', name: 'Cornered Menace', description: 'Maul x2', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 16, mechanic: { executeMoves: ['maul', 'maul'] } }
     ], lastResortCooldown: 0, hasUsedLastResort: false
@@ -1461,7 +1464,19 @@ export default function GameDemo() {
 
     newPlayer.block = 0;
     newPlayer.energy = newPlayer.maxEnergy;
-    const drawCount = 5 + (newPlayer.effects[StatusEffect.WISDOM] || 0);
+    
+    // UPDATED: Draw Logic with Dazed (formerly Confusion)
+    let drawCount = 5 + (newPlayer.effects[StatusEffect.WISDOM] || 0);
+    
+    if (newPlayer.effects[StatusEffect.DAZED]) {
+        const dazedAmount = newPlayer.effects[StatusEffect.DAZED];
+        drawCount -= dazedAmount;
+        addNotification(`Dazed: Drew ${dazedAmount} less cards!`, 'status');
+        delete newPlayer.effects[StatusEffect.DAZED]; // Dazed is consumed on trigger
+    }
+    
+    drawCount = Math.max(0, drawCount); // Prevent negative draw
+    
     drawCards({player: newPlayer}, drawCount);
 
     // --- HANDLE PASSIVE TRAP LOGIC (After Draw Phase) ---
@@ -2233,7 +2248,8 @@ export default function GameDemo() {
 
 const KeywordText = ({ text }) => {
   // Helper to split text and wrap keywords
-  const parts = text.split(/(\b(?:Block|Vulnerable|Weak|Strength|Bleed|Poison|Burn|Evasion|Holy Fervor|Stun|Confusion|Tenacity|Protection|Innate|Volatile|Retain|Ranged|Exhaust|Mill|Augment|Dispel|Thorns|Rage|Bloodthirst|Entangled|Blighted|Lifevamp|Regen|Gestating|Debuff|Reckless|Weapon Mastery)\b)/gi);
+  // UPDATED: Replaced Confusion with Dazed in regex
+  const parts = text.split(/(\b(?:Block|Vulnerable|Weak|Strength|Bleed|Poison|Burn|Evasion|Holy Fervor|Stun|Dazed|Tenacity|Protection|Innate|Volatile|Retain|Ranged|Exhaust|Mill|Augment|Dispel|Thorns|Rage|Bloodthirst|Entangled|Blighted|Lifevamp|Regen|Gestating|Debuff|Reckless|Weapon Mastery)\b)/gi);
   
   return (
     <span>
