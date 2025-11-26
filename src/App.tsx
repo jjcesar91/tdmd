@@ -615,7 +615,8 @@ const MINIONS_DB = {
       // Updated: Confusion -> Dazed
       { id: 'maul', name: 'Maul', description: '8 Dmg + Dazed', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 8, statusEffects: [{status: StatusEffect.DAZED, amount: 1, target: 'Player'}] },
       { id: 'fury', name: 'Fury', description: 'Gain Rage', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, statusEffects: [{status: StatusEffect.RAGE, amount: 1}] },
-      { id: 'cornered', name: 'Cornered Menace', description: 'Maul x2', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 16, mechanic: { executeMoves: ['maul', 'maul'] } }
+      // FIX: Removed 'damage: 16' so it purely executes Maul x2 (8+8 = 16 total) instead of 16 + 8 + 8.
+      { id: 'cornered', name: 'Cornered Menace', description: 'Maul x2', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, mechanic: { executeMoves: ['maul', 'maul'] } }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'blowgun_blight': {
@@ -624,7 +625,8 @@ const MINIONS_DB = {
     moves: [
       { id: 'blow', name: 'Blow', description: '4 Dmg + 2 Poison', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 4, statusEffects: [{status: StatusEffect.POISON, amount: 2, target: 'Player'}] },
       { id: 'dirk', name: 'Thorn Dirk', description: '6 Dmg', category: EnemyMoveCategory.TACTIC, intentType: IntentType.ATTACK, damage: 6 },
-      { id: 'miasma', name: 'Miasma', description: '+1 Debuffs + 2 Evasion', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 2}] }
+      // UPDATED: Added 'increaseDebuffs' mechanic to Miasma
+      { id: 'miasma', name: 'Miasma', description: '+1 Debuffs + 2 Evasion', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 2}], mechanic: { increaseDebuffs: { amount: 1 } } }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'ambusher_blight': {
@@ -1366,6 +1368,28 @@ export default function GameDemo() {
           
           if (milledCards.length > 0) {
               currentActionLogs.push(`Milled: ${milledCards.join(', ')}`);
+          }
+      }
+
+      // UPDATED: Handle Mechanic: Increase Debuffs (Miasma)
+      if (move.mechanic && move.mechanic.increaseDebuffs) {
+          const { amount } = move.mechanic.increaseDebuffs;
+          // Create a copy of effects to ensure React reactivity
+          newPlayer.effects = { ...newPlayer.effects };
+          
+          let worsenedDebuffs = [];
+          
+          DEBUFFS.forEach(debuff => {
+              if (newPlayer.effects[debuff] && newPlayer.effects[debuff] > 0) {
+                  newPlayer.effects[debuff] += amount;
+                  worsenedDebuffs.push(debuff);
+              }
+          });
+
+          if (worsenedDebuffs.length > 0) {
+              currentActionLogs.push(`Miasma worsened: ${worsenedDebuffs.join(', ')} (+${amount})`);
+          } else {
+              currentActionLogs.push("Miasma found no debuffs to worsen.");
           }
       }
       
