@@ -561,10 +561,12 @@ const MINIONS_DB = {
     id: 'kobold_shaman', name: 'Kobold Shaman', maxHealth: 45, currentHealth: 45, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.A,
     description: "A tribal caster who empowers his allies with dragonfire.",
     moves: [
-      { id: 'anti', name: 'Trickster Chant', description: '1 Evasion + 1 Weak', category: EnemyMoveCategory.BASE, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 1}, {status: StatusEffect.WEAK, amount: 1, target: 'Player'}] },
-      { id: 'ritual', name: 'Fire Ritual', description: 'Buffs on Ally Death', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, mechanic: { triggerCondition: 'OnAllyDeath' } }, 
+      // UPDATED: Trickster Chant is now TACTIC and grants +1 Augment
+      { id: 'anti', name: 'Trickster Chant', description: '1 Evasion + 1 Weak + 1 Augment', category: EnemyMoveCategory.TACTIC, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 1}, {status: StatusEffect.WEAK, amount: 1, target: 'Player'}, {status: StatusEffect.AUGMENT, amount: 1}] },
+      // UPDATED: Fire Ritual is now BASE and ONE USE
+      { id: 'ritual', name: 'Fire Ritual', description: 'Buffs on Ally Death (Once)', category: EnemyMoveCategory.BASE, intentType: IntentType.BUFF, mechanic: { triggerCondition: 'OnAllyDeath' }, oneUse: true }, 
       // FIX: Changed BURNING to BURN
-      { id: 'evoke', name: 'Evoke Dragonfire', description: '6 Dmg + Burn', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 6, cooldown: 2, statusEffects: [{status: StatusEffect.BURN, amount: 0, target: 'Player'}], statusScaling: ScalingFactor.AUGMENT }
+      { id: 'evoke', name: 'Evoke Dragonfire', description: '6 Dmg + Burn', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 6, cooldown: 0, statusEffects: [{status: StatusEffect.BURN, amount: 0, target: 'Player'}], statusScaling: ScalingFactor.AUGMENT }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'dragon_spawn': {
@@ -786,7 +788,8 @@ export default function GameDemo() {
         return list[Math.floor(Math.random() * list.length)];
     };
     
-    const createEnemy = (template, uid) => JSON.parse(JSON.stringify({...template, id: uid}));
+    // UPDATED: Initialize usedMoveIds for one-use moves
+    const createEnemy = (template, uid) => JSON.parse(JSON.stringify({...template, id: uid, usedMoveIds: []}));
 
     let enemyPool = [];
 
@@ -891,11 +894,13 @@ export default function GameDemo() {
     const ratio = enemy.currentHealth / enemy.maxHealth;
     
     // 1. Priority: Last Resort (Low HP Trigger) overrides pattern
-    if (ratio < 0.3 && !enemy.hasUsedLastResort && enemy.lastResortCooldown <= 0) {
+    // FIX 1: Removed "!enemy.hasUsedLastResort" to allow repeated usage if cooldown permits (e.g. Shaman spam)
+    if (ratio < 0.3 && enemy.lastResortCooldown <= 0) {
       move = enemy.moves.find(m => m.category === EnemyMoveCategory.LAST_RESORT);
       if (move) {
         enemy.hasUsedLastResort = true;
-        enemy.lastResortCooldown = move.cooldown || 99;
+        // FIX 2: Handle cooldown 0 correctly (0 || 99 results in 99, which broke the spam logic)
+        enemy.lastResortCooldown = move.cooldown !== undefined ? move.cooldown : 99;
         enemy.nextMove = move;
         return;
       }
@@ -911,14 +916,19 @@ export default function GameDemo() {
     
     const isTacticTurn = (turnNum % 3 === 2);
 
+    // UPDATED: Helper to find valid moves checking for oneUse
+    const getValidMove = (cat) => {
+        return enemy.moves.find(m => m.category === cat && (!m.oneUse || !enemy.usedMoveIds?.includes(m.id)));
+    };
+
     if (isTacticTurn) {
-        move = enemy.moves.find(m => m.category === EnemyMoveCategory.TACTIC);
-        // Fallback to Base if no tactic defined
-        if (!move) move = enemy.moves.find(m => m.category === EnemyMoveCategory.BASE);
+        move = getValidMove(EnemyMoveCategory.TACTIC);
+        // Fallback to Base if no tactic defined OR if Base is valid and Tactic isn't
+        if (!move) move = getValidMove(EnemyMoveCategory.BASE);
     } else {
-        move = enemy.moves.find(m => m.category === EnemyMoveCategory.BASE);
-        // Fallback to Tactic if no base defined
-        if (!move) move = enemy.moves.find(m => m.category === EnemyMoveCategory.TACTIC);
+        move = getValidMove(EnemyMoveCategory.BASE);
+        // Fallback to Tactic if no base defined OR if Base was one-use and is exhausted
+        if (!move) move = getValidMove(EnemyMoveCategory.TACTIC);
     }
     
     // Fallback: Pick random non-ultimate if somehow nothing matched
@@ -1091,12 +1101,13 @@ export default function GameDemo() {
     const updatedEnemies = g.enemies.filter(e => e.currentHealth > 0);
     updatedEnemies.forEach(e => {
         const ratio = e.currentHealth / e.maxHealth;
-        if (ratio <= 0.3 && !e.hasUsedLastResort && e.lastResortCooldown <= 0) {
+        // FIX: Updated logic to match updateEnemyIntent (removed !hasUsedLastResort check and fixed cooldown 0 bug)
+        if (ratio <= 0.3 && e.lastResortCooldown <= 0) {
             const lrMove = e.moves.find(m => m.category === EnemyMoveCategory.LAST_RESORT);
             if (lrMove && e.nextMove?.id !== lrMove.id) {
                  e.nextMove = lrMove;
                  e.hasUsedLastResort = true;
-                 e.lastResortCooldown = lrMove.cooldown || 99;
+                 e.lastResortCooldown = lrMove.cooldown !== undefined ? lrMove.cooldown : 99;
             }
         }
     });
@@ -1210,6 +1221,12 @@ export default function GameDemo() {
       
       const g = { player: newPlayer, enemies: newEnemies };
 
+      // UPDATED: Track One-Use Moves
+      if (move.oneUse) {
+          activeEnemy.usedMoveIds = activeEnemy.usedMoveIds || [];
+          activeEnemy.usedMoveIds.push(move.id);
+      }
+
       // --- POISON LOGIC (ENEMY) ---
       // Fix: Explicitly handle decrement for enemies too
       if ((activeEnemy.effects[StatusEffect.POISON] || 0) > 0) {
@@ -1268,8 +1285,8 @@ export default function GameDemo() {
                      currentActionLogs.push(`${activeEnemy.name}'s Dragonfire fizzles (0 Augment)`);
                  }
              }
-             // Fix: Added BLOODTHIRST and RAGE to self-targeting effects
-             else if (eff.status === StatusEffect.EVASION || eff.status === StatusEffect.BLOODTHIRST || eff.status === StatusEffect.RAGE) {
+             // Fix: Added BLOODTHIRST, RAGE and AUGMENT to self-targeting effects
+             else if (eff.status === StatusEffect.EVASION || eff.status === StatusEffect.BLOODTHIRST || eff.status === StatusEffect.RAGE || eff.status === StatusEffect.AUGMENT) {
                  applyStatus(g, activeEnemy, eff.status, eff.amount, currentActionLogs);
              }
              else applyStatus(g, newPlayer, eff.status, eff.amount, currentActionLogs);
