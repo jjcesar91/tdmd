@@ -162,7 +162,7 @@ const KEYWORDS = {
   "Dispel": "Remove Buffs or Debuffs.",
   "Thorns": "Deal X damage to attacker when hit.",
   "Rage": "Gain 1 Strength when taking damage.",
-  "Bloodthirst": "Gain 1 Strength when target gains Bleed.",
+  "Bloodthirst": "Gain 1 Strength when anyone gains Bleed.",
   "Entangled": "Cannot use non-Ranged Attacks.",
   "Blighted": "Poison stacks are not removed when they trigger damage.",
   "Lifevamp": "Heal for 100% of unblocked damage dealt.",
@@ -174,6 +174,9 @@ const KEYWORDS = {
   "Reckless": "Start of Turn: Automatically plays the first drawn card with -1 Cost (if possible).",
   "Weapon Mastery": "Doubles the effectiveness of Main Hand and Off Hand passives."
 };
+
+// Helper regex for keyword extraction
+const KEYWORD_REGEX = new RegExp(`\\b(?:${Object.keys(KEYWORDS).join('|')})\\b`, 'gi');
 
 // --- DATA: EQUIPMENT CONFIG ---
 
@@ -204,7 +207,9 @@ const createCard = (props) => ({
 });
 
 const getEnemy = (g, id) => g.enemies.find(e => e.id === id);
-const applyStatus = (target, status, amount, logs = []) => {
+
+// UPDATED: Now accepts 'g' (game state) to handle global triggers like Bloodthirst
+const applyStatus = (g, target, status, amount, logs = []) => {
   if (!target) return;
   // Protection Logic
   if (target.effects[StatusEffect.PROTECTION] && DEBUFFS.includes(status)) {
@@ -216,6 +221,17 @@ const applyStatus = (target, status, amount, logs = []) => {
   
   target.effects[status] = (target.effects[status] || 0) + amount;
   logs.push(`${target.name}: +${amount} ${status}`);
+
+  // GLOBAL TRIGGER: Bloodthirst
+  if (status === StatusEffect.BLEED && g) {
+      const allUnits = [g.player, ...g.enemies];
+      allUnits.forEach(unit => {
+          if (unit.effects[StatusEffect.BLOODTHIRST] && unit.currentHealth > 0) {
+              unit.effects[StatusEffect.STRENGTH] = (unit.effects[StatusEffect.STRENGTH] || 0) + 1;
+              logs.push(`${unit.name} gains Strength from Bloodthirst!`);
+          }
+      });
+  }
 };
 
 const drawCards = (g, count) => {
@@ -263,7 +279,7 @@ const dealDamage = (g, source, target, amount, logs) => {
   if (!source.isEnemy && source.equipment.includes('morningstar')) {
       // Apply X times based on Mastery
       for(let i=0; i<masteryMultiplier; i++) {
-         if (Math.random() > 0.5) applyStatus(target, StatusEffect.BLEED, 1, logs);
+         if (Math.random() > 0.5) applyStatus(g, target, StatusEffect.BLEED, 1, logs);
       }
   }
 
@@ -289,7 +305,7 @@ const dealDamage = (g, source, target, amount, logs) => {
     
     // Trigger Rage
     if (target.effects[StatusEffect.RAGE]) {
-        applyStatus(target, StatusEffect.STRENGTH, 1, logs);
+        applyStatus(g, target, StatusEffect.STRENGTH, 1, logs);
         logs.push(`${target.name} is Enraged!`);
     }
   }
@@ -297,7 +313,7 @@ const dealDamage = (g, source, target, amount, logs) => {
 };
 
 const BLESSING_CARDS = [
-  createCard({ id: 'samson', name: "Samson's Strength", type: CardType.SKILL, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Gain 2 Strength.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.STRENGTH, 2, logs) }),
+  createCard({ id: 'samson', name: "Samson's Strength", type: CardType.SKILL, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Gain 2 Strength.', effect: (g, tid, logs) => applyStatus(g, g.player, StatusEffect.STRENGTH, 2, logs) }),
   createCard({ id: 'david', name: "King David's Courage", type: CardType.SKILL, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Random card in hand costs 0.', effect: (g, tid, logs, src) => { 
       const valid = g.player.hand.filter(c => c.id !== src.id);
       if(valid.length > 0) { 
@@ -306,7 +322,7 @@ const BLESSING_CARDS = [
           if(logs) logs.push(`${c.name} costs 0`); 
       } 
   } }), 
-  createCard({ id: 'solomon', name: "Solomon's Wisdom", type: CardType.POWER, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Draw +1 card each turn.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WISDOM, 1, logs) }) 
+  createCard({ id: 'solomon', name: "Solomon's Wisdom", type: CardType.POWER, rarity: CardRarity.TOKEN, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY, ClassTag.BLESSING], target: CardTarget.SELF, description: 'Draw +1 card each turn.', effect: (g, tid, logs) => applyStatus(g, g.player, StatusEffect.WISDOM, 1, logs) }) 
 ];
 
 const TOKEN_CARDS = {
@@ -327,15 +343,22 @@ const TOKEN_CARDS = {
 
 const COMMON_CRUSADER_CARDS = [
   createCard({ id: 'strike', name: 'Strike', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 5 Damage.', baseDamage: 5 }),
-  createCard({ id: 'warcry', name: 'Warcry', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 1 Strength.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.STRENGTH, 1, logs) }),
-  createCard({ id: 'bash', name: 'Bash', type: CardType.ATTACK, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 8 Damage. Apply 2 Vulnerable.', baseDamage: 8, effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.VULNERABLE, 2, logs) }),
+  createCard({ id: 'warcry', name: 'Warcry', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 1 Strength.', effect: (g, tid, logs) => applyStatus(g, g.player, StatusEffect.STRENGTH, 1, logs) }),
+  createCard({ id: 'bash', name: 'Bash', type: CardType.ATTACK, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Deal 8 Damage. Apply 2 Vulnerable.', baseDamage: 8, effect: (g, tid, logs) => applyStatus(g, getEnemy(g, tid), StatusEffect.VULNERABLE, 2, logs) }),
   createCard({ id: 'draw_steel', name: 'Draw Steel', type: CardType.SKILL, cost: 0, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Discard 1 random card. Draw 1 Attack.', effect: (g, tid, logs, src) => { 
       const valid = g.player.hand.filter(c => c.id !== src.id);
       if (valid.length > 0) {
         const discardIdx = Math.floor(Math.random() * valid.length);
         const target = valid[discardIdx];
         const realIdx = g.player.hand.findIndex(c => c.id === target.id);
-        if (realIdx > -1) g.player.discardPile.push(g.player.hand.splice(realIdx, 1)[0]);
+        if (realIdx > -1) {
+            const discardedCard = g.player.hand.splice(realIdx, 1)[0];
+            if (discardedCard.volatile) {
+                if (logs) logs.push(`${discardedCard.name} (Volatile) Exhausted.`);
+            } else {
+                g.player.discardPile.push(discardedCard);
+            }
+        }
       }
       const atk = g.player.drawPile.find((c) => c.type === CardType.ATTACK);
       if (atk) {
@@ -371,7 +394,7 @@ const COMMON_CRUSADER_CARDS = [
          };
       }
   }),
-  createCard({ id: 'divine_ward', name: 'Divine Ward', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Gain 2 Protection.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.PROTECTION, 2, logs) }),
+  createCard({ id: 'divine_ward', name: 'Divine Ward', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Gain 2 Protection.', effect: (g, tid, logs) => applyStatus(g, g.player, StatusEffect.PROTECTION, 2, logs) }),
   createCard({ id: 'holy_smite', name: 'Holy Smite', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal dmg equal to Holy Fervor.', baseDamage: 0, effect: (g, tid, logs) => { const dmg = g.player.effects[StatusEffect.HOLY_FERVOR] || 0; dealDamage(g, g.player, getEnemy(g, tid), dmg, logs || []); g.player.effects[StatusEffect.HOLY_FERVOR] = 0; } }),
   // UPDATED: Battle Trance
   createCard({ 
@@ -389,9 +412,9 @@ const COMMON_CRUSADER_CARDS = [
           logs.push("Battle Trance grants 2 Energy.");
       }
   }), 
-  createCard({ id: 'iron_will', name: 'Iron Will', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 2 Tenacity.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.TENACITY, 2, logs) }),
-  createCard({ id: 'reckless_nature', name: 'Reckless Nature', type: CardType.POWER, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Start of Turn: Play first drawn card for -1 Energy.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.RECKLESS, 1, logs) }),
-  createCard({ id: 'weapon_master', name: 'Weapon Master', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Doubles Main/Off Hand passive effects.', effect: (g, tid, logs) => applyStatus(g.player, StatusEffect.WEAPON_MASTERY, 1, logs) }),
+  createCard({ id: 'iron_will', name: 'Iron Will', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Gain 2 Tenacity.', effect: (g, tid, logs) => applyStatus(g, g.player, StatusEffect.TENACITY, 2, logs) }),
+  createCard({ id: 'reckless_nature', name: 'Reckless Nature', type: CardType.POWER, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Start of Turn: Play first drawn card for -1 Energy.', effect: (g, tid, logs) => applyStatus(g, g.player, StatusEffect.RECKLESS, 1, logs) }),
+  createCard({ id: 'weapon_master', name: 'Weapon Master', type: CardType.POWER, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SELF, description: 'Doubles Main/Off Hand passive effects.', effect: (g, tid, logs) => applyStatus(g, g.player, StatusEffect.WEAPON_MASTERY, 1, logs) }),
   createCard({ id: 'pray', name: 'Pray', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Craft 1 Blessing and shuffle into deck.', effect: (g) => { return { action: 'CRAFT', options: BLESSING_CARDS }; } }),
   createCard({ id: 'in_nomine', name: 'In nomine patris', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Discard 1. Draw 1 Holy.', volatile: true, effect: (g, tid, logs, src) => {
       const valid = g.player.hand.filter(c => c.id !== src.id);
@@ -399,7 +422,14 @@ const COMMON_CRUSADER_CARDS = [
         const discardIdx = Math.floor(Math.random() * valid.length);
         const target = valid[discardIdx];
         const realIdx = g.player.hand.findIndex(c => c.id === target.id);
-        if (realIdx > -1) g.player.discardPile.push(g.player.hand.splice(realIdx, 1)[0]);
+        if (realIdx > -1) {
+            const discardedCard = g.player.hand.splice(realIdx, 1)[0];
+            if (discardedCard.volatile) {
+                if (logs) logs.push(`${discardedCard.name} (Volatile) Exhausted.`);
+            } else {
+                g.player.discardPile.push(discardedCard);
+            }
+        }
       }
       const holy = g.player.drawPile.find((c) => c.cardClass.includes(ClassTag.HOLY));
       if (holy) {
@@ -415,19 +445,23 @@ const COMMON_CRUSADER_CARDS = [
       const holyInHand = g.player.hand.find((c) => c.cardClass.includes(ClassTag.HOLY) && c.id !== 'commandment');
       if (holyInHand) {
           g.player.hand = g.player.hand.filter((c) => c !== holyInHand);
-          g.player.discardPile.push(holyInHand);
+          if (holyInHand.volatile) {
+              if (logs) logs.push(`${holyInHand.name} (Volatile) Exhausted.`);
+          } else {
+              g.player.discardPile.push(holyInHand);
+          }
       }
       const holyCount = g.player.discardPile.filter((c) => c.cardClass.includes(ClassTag.HOLY)).length;
       dealDamage(g, g.player, getEnemy(g, tid), holyCount * 5, logs || []);
   }}),
   createCard({ id: 'bigger_they_are', name: 'The Bigger They Are', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER], target: CardTarget.SINGLE, description: 'Apply 2 Weak. Shuffle "Harder They Fall" into deck.', effect: (g, tid, logs) => {
-      applyStatus(getEnemy(g, tid), StatusEffect.WEAK, 2, logs);
+      applyStatus(g, getEnemy(g, tid), StatusEffect.WEAK, 2, logs);
       g.player.drawPile.push({...COMMON_CRUSADER_CARDS.find(c => c.id === 'harder_fall'), id: `gen_${Date.now()}`});
       g.player.drawPile.sort(() => Math.random() - 0.5);
   }}),
   createCard({ id: 'our_father', name: 'Our Father...', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Volatile. Double Holy Fervor.', volatile: true, effect: (g, tid, logs) => {
       const current = g.player.effects[StatusEffect.HOLY_FERVOR] || 0;
-      applyStatus(g.player, StatusEffect.HOLY_FERVOR, current, logs);
+      applyStatus(g, g.player, StatusEffect.HOLY_FERVOR, current, logs);
   }})
 ];
 
@@ -471,8 +505,8 @@ const ZEALOT_CARDS = [
 ];
 
 const INQUISITOR_CARDS = [
-  createCard({ id: 'condemn', name: 'Condemn', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.INQUISITOR], target: CardTarget.SINGLE, description: 'Apply 2 Weak.', effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.WEAK, 2, logs) }),
-  createCard({ id: 'flail', name: 'Flail', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.INQUISITOR], target: CardTarget.SINGLE, description: 'Deal 4 Dmg. Apply 1 Bleed.', baseDamage: 4, effect: (g, tid, logs) => applyStatus(getEnemy(g, tid), StatusEffect.BLEED, 1, logs) }),
+  createCard({ id: 'condemn', name: 'Condemn', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.INQUISITOR], target: CardTarget.SINGLE, description: 'Apply 2 Weak.', effect: (g, tid, logs) => applyStatus(g, getEnemy(g, tid), StatusEffect.WEAK, 2, logs) }),
+  createCard({ id: 'flail', name: 'Flail', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.INQUISITOR], target: CardTarget.SINGLE, description: 'Deal 4 Dmg. Apply 1 Bleed.', baseDamage: 4, effect: (g, tid, logs) => applyStatus(g, getEnemy(g, tid), StatusEffect.BLEED, 1, logs) }),
 ];
 
 // --- DATA: ENEMIES (COMPLETE ROSTER) ---
@@ -643,6 +677,10 @@ export default function GameDemo() {
   const [deck, setDeck] = useState([]);
   const [step, setStep] = useState(1);
   
+  // Game Mode State
+  const [gameMode, setGameMode] = useState('CLASSIC'); // 'CLASSIC' or 'BALANCE'
+  const [customEnemies, setCustomEnemies] = useState([]); // For Balance Mode setup
+
   // Combat State
   const [player, setPlayer] = useState(null);
   const [enemies, setEnemies] = useState([]);
@@ -656,6 +694,9 @@ export default function GameDemo() {
   // New: Card Selection State
   const [cardSelection, setCardSelection] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
+
+  // New: Preview Card State for Long Press
+  const [previewCard, setPreviewCard] = useState(null);
 
   // Updated draft selection state
   const [draftSelections, setDraftSelections] = useState({skill:null, power:null});
@@ -682,6 +723,9 @@ export default function GameDemo() {
   // --- FLOW HANDLERS ---
 
   const startGame = () => {
+    // Reset custom enemies if we are starting classic mode
+    if (gameMode === 'CLASSIC') setCustomEnemies([]);
+
     const starterDeck = [];
     const baseAttack = COMMON_CRUSADER_CARDS.find(c => c.id === 'strike');
     // Selections from Draft
@@ -701,6 +745,34 @@ export default function GameDemo() {
     }
   };
 
+  const handleBalanceModeSetup = () => {
+      setGameMode('BALANCE');
+      setScreen('BALANCE_SETUP');
+      setCustomEnemies([]);
+  };
+
+  const startCustomEncounter = () => {
+      const starterDeck = [];
+      const baseAttack = COMMON_CRUSADER_CARDS.find(c => c.id === 'strike');
+      // Default selections if not drafted yet (or force draft first? let's assume draft happened)
+      // Actually, let's just use the current draft selections. 
+      // If user skipped draft (not possible by flow), we'd have issues.
+      // But Balance Mode button is on DRAFT screen, so selections exist.
+      
+      const selectedSkill = draftSelections.skill;
+      const selectedPower = draftSelections.power;
+
+      if (baseAttack && selectedSkill && selectedPower) {
+          for(let i=0; i<6; i++) starterDeck.push({...baseAttack, id: `atk_${i}`});
+          for(let i=0; i<3; i++) starterDeck.push({...selectedSkill, id: `skl_${i}`});
+          starterDeck.push({...selectedPower, id: `pwr_${0}`});
+          
+          setDeck(starterDeck);
+          // Pass true for isNewGame
+          startEncounter(1, starterDeck);
+      }
+  };
+
   // ... (startEncounter same as before) ...
   const startEncounter = (currentStep, overrideDeck) => {
     setStep(currentStep);
@@ -718,25 +790,31 @@ export default function GameDemo() {
 
     let enemyPool = [];
 
-    if (currentStep <= 3) {
-        enemyPool = [createEnemy(getRandom(minionsB), 'e1')];
-    } else if (currentStep <= 6) {
-        enemyPool = [
-            createEnemy(getRandom(minionsB), 'e1'),
-            createEnemy(getRandom(minionsA), 'e2')
-        ];
-    } else if (currentStep <= 9) {
-        if (Math.random() > 0.5) {
-             enemyPool = [createEnemy(getRandom(minionsS), 'e1')];
-        } else {
-             enemyPool = [
-                createEnemy(getRandom(minionsA), 'e1'),
-                createEnemy(getRandom(minionsB), 'e2'),
-                createEnemy(getRandom(minionsB), 'e3')
-            ];
-        }
+    if (gameMode === 'BALANCE') {
+        // Use Custom Enemies
+        enemyPool = customEnemies.map((e, i) => createEnemy(e, `custom_e${i}`));
     } else {
-      enemyPool = [createEnemy(minionsS[0], 'boss_placeholder')];
+        // CLASSIC MODE GENERATION
+        if (currentStep <= 3) {
+            enemyPool = [createEnemy(getRandom(minionsB), 'e1')];
+        } else if (currentStep <= 6) {
+            enemyPool = [
+                createEnemy(getRandom(minionsB), 'e1'),
+                createEnemy(getRandom(minionsA), 'e2')
+            ];
+        } else if (currentStep <= 9) {
+            if (Math.random() > 0.5) {
+                 enemyPool = [createEnemy(getRandom(minionsS), 'e1')];
+            } else {
+                 enemyPool = [
+                    createEnemy(getRandom(minionsA), 'e1'),
+                    createEnemy(getRandom(minionsB), 'e2'),
+                    createEnemy(getRandom(minionsB), 'e3')
+                ];
+            }
+        } else {
+          enemyPool = [createEnemy(minionsS[0], 'boss_placeholder')];
+        }
     }
 
     let p;
@@ -776,7 +854,7 @@ export default function GameDemo() {
     }
 
     // START OF COMBAT EFFECTS (Applied fresh each combat)
-    if (p.equipment.includes('greathelm')) applyStatus(p, StatusEffect.PROTECTION, 1, []);
+    if (p.equipment.includes('greathelm')) applyStatus({player: p, enemies: enemyPool}, p, StatusEffect.PROTECTION, 1, []);
     
     if (p.equipment.includes('kite_shield')) {
         for(let i=0; i<4; i++) p.drawPile.push({...TOKEN_CARDS['shield_block'], id: `tok_sh_${i}`});
@@ -812,18 +890,43 @@ export default function GameDemo() {
     let move;
     const ratio = enemy.currentHealth / enemy.maxHealth;
     
+    // 1. Priority: Last Resort (Low HP Trigger) overrides pattern
     if (ratio < 0.3 && !enemy.hasUsedLastResort && enemy.lastResortCooldown <= 0) {
       move = enemy.moves.find(m => m.category === EnemyMoveCategory.LAST_RESORT);
-      enemy.hasUsedLastResort = true;
-      enemy.lastResortCooldown = move.cooldown || 99;
-    } else if (turnNum === 1) {
-      move = enemy.moves.find(m => m.category === EnemyMoveCategory.BASE);
-    } else if (ratio > 0.3 && turnNum === 2) {
-      move = enemy.moves.find(m => m.category === EnemyMoveCategory.TACTIC);
+      if (move) {
+        enemy.hasUsedLastResort = true;
+        enemy.lastResortCooldown = move.cooldown || 99;
+        enemy.nextMove = move;
+        return;
+      }
+    } 
+    
+    // 2. Standard Pattern
+    // Turn 1: Attack (Base)
+    // Turn 2: Tactic
+    // Turn 3: Attack
+    // Turn 4: Attack
+    // Turn 5: Tactic
+    // Logic: Tactic occurs on Turn 2, 5, 8... (turnNum % 3 === 2)
+    
+    const isTacticTurn = (turnNum % 3 === 2);
+
+    if (isTacticTurn) {
+        move = enemy.moves.find(m => m.category === EnemyMoveCategory.TACTIC);
+        // Fallback to Base if no tactic defined
+        if (!move) move = enemy.moves.find(m => m.category === EnemyMoveCategory.BASE);
     } else {
+        move = enemy.moves.find(m => m.category === EnemyMoveCategory.BASE);
+        // Fallback to Tactic if no base defined
+        if (!move) move = enemy.moves.find(m => m.category === EnemyMoveCategory.TACTIC);
+    }
+    
+    // Fallback: Pick random non-ultimate if somehow nothing matched
+    if (!move) {
       const opts = enemy.moves.filter(m => m.category !== EnemyMoveCategory.LAST_RESORT);
       move = opts[Math.floor(Math.random() * opts.length)];
     }
+    
     enemy.nextMove = move;
   };
 
@@ -867,6 +970,33 @@ export default function GameDemo() {
     };
     
     newPlayer.energy -= actualCost;
+
+    // --- POISON LOGIC (PLAYER) ---
+    // Fix: Explicitly handle decrement to ensure state update
+    if ((newPlayer.effects[StatusEffect.POISON] || 0) > 0) {
+        const poisonDmg = newPlayer.effects[StatusEffect.POISON];
+        newPlayer.currentHealth -= poisonDmg;
+        addNotification(`Player took ${poisonDmg} Poison damage!`, 'damage');
+        
+        // Decrement unless Blighted
+        if (!newPlayer.effects[StatusEffect.BLIGHTED]) {
+            const currentStacks = newPlayer.effects[StatusEffect.POISON];
+            const newStacks = currentStacks - 1;
+            if (newStacks <= 0) {
+                delete newPlayer.effects[StatusEffect.POISON];
+            } else {
+                newPlayer.effects[StatusEffect.POISON] = newStacks;
+            }
+        }
+
+        // Check for self-death immediately
+        if (newPlayer.currentHealth <= 0) {
+             setPlayer(newPlayer);
+             setScreen('GAMEOVER');
+             return;
+        }
+    }
+    // -----------------------------
 
     const g = { player: newPlayer, enemies: [...enemies] };
     const logs = [];
@@ -912,7 +1042,7 @@ export default function GameDemo() {
     }
 
     if (card.cardClass.includes(ClassTag.HOLY) || card.cardClass.includes(ClassTag[subclass])) {
-        applyStatus(newPlayer, StatusEffect.HOLY_FERVOR, 1, logs);
+        applyStatus(g, newPlayer, StatusEffect.HOLY_FERVOR, 1, logs);
     }
 
     // Check for Enemy Death
@@ -920,7 +1050,7 @@ export default function GameDemo() {
     if (deadEnemies.length > 0) {
         g.enemies.forEach(survivor => {
             if (survivor.currentHealth > 0 && survivor.moves.some(m => m.mechanic && m.mechanic.triggerCondition === 'OnAllyDeath')) {
-                applyStatus(survivor, StatusEffect.AUGMENT, 6, logs);
+                applyStatus(g, survivor, StatusEffect.AUGMENT, 6, logs);
                 survivor.block += 6;
                 logs.push(`${survivor.name} gained 6 Augment & 6 Block (Fire Ritual)`);
             }
@@ -976,7 +1106,11 @@ export default function GameDemo() {
     if (g.enemies.every(e => e.currentHealth <= 0)) {
       // Don't double deck
       setPlayer(newPlayer);
-      setTimeout(() => setScreen('REWARD'), 1000);
+      if (gameMode === 'BALANCE') {
+          setTimeout(() => setScreen('BALANCE_VICTORY'), 1000);
+      } else {
+          setTimeout(() => setScreen('REWARD'), 1000);
+      }
     }
   };
 
@@ -1021,16 +1155,24 @@ export default function GameDemo() {
     };
     
     const retainedCards = newPlayer.hand.filter(c => c.retain);
-    const discardedCards = newPlayer.hand.filter(c => !c.retain);
+    const cardsToDiscard = newPlayer.hand.filter(c => !c.retain);
 
     if (subclass === 'KNIGHT') {
-        const blockGain = discardedCards.length;
+        const blockGain = cardsToDiscard.length;
         if (blockGain > 0) {
             newPlayer.block += blockGain;
         }
     }
 
-    newPlayer.discardPile.push(...discardedCards);
+    // UPDATED: Volatile Logic for End of Turn Discard
+    cardsToDiscard.forEach(card => {
+        if (card.volatile) {
+            addNotification(`${card.name} (Volatile) Exhausted!`, 'info');
+        } else {
+            newPlayer.discardPile.push(card);
+        }
+    });
+
     newPlayer.hand = retainedCards; 
     
     // DECAY Entangled at end of turn (so it lasts 1 turn)
@@ -1065,15 +1207,39 @@ export default function GameDemo() {
       const activeEnemy = newEnemies.find(e => e.id === enemyId);
       
       const currentActionLogs = []; // Collect events here
+      
+      const g = { player: newPlayer, enemies: newEnemies };
+
+      // --- POISON LOGIC (ENEMY) ---
+      // Fix: Explicitly handle decrement for enemies too
+      if ((activeEnemy.effects[StatusEffect.POISON] || 0) > 0) {
+          const poisonDmg = activeEnemy.effects[StatusEffect.POISON];
+          activeEnemy.currentHealth -= poisonDmg;
+          currentActionLogs.push(`${activeEnemy.name} took ${poisonDmg} Poison damage!`);
+          
+          // Decrement unless Blighted
+          if (!activeEnemy.effects[StatusEffect.BLIGHTED]) {
+              const currentStacks = activeEnemy.effects[StatusEffect.POISON];
+              const newStacks = currentStacks - 1;
+              if (newStacks <= 0) {
+                  delete activeEnemy.effects[StatusEffect.POISON];
+              } else {
+                  activeEnemy.effects[StatusEffect.POISON] = newStacks;
+              }
+          }
+      }
+      // ----------------------------
 
       // --- DAMAGE CALCULATION BLOCK ---
       let finalDamage = move.damage || 0;
       
-      if (move.statusScaling && move.statusScaling === ScalingFactor.AUGMENT) {
+      // Re-added AUGMENT to Damage Scaling per user request
+      if (move.statusScaling === ScalingFactor.AUGMENT) {
           finalDamage += (activeEnemy.effects[StatusEffect.AUGMENT] || 0);
-      } 
-      // Kobold Fanatic: Double remaining HP
-      else if (move.damageScaling === ScalingFactor.CURRENT_HP) {
+      }
+      
+      // FIX: Removed AUGMENT from Damage Scaling (it should only scale Status for Shaman)
+      if (move.damageScaling === ScalingFactor.CURRENT_HP) {
           finalDamage = activeEnemy.currentHealth * 2;
       }
       // Goblin Hunter: Discard Pile Size
@@ -1082,7 +1248,7 @@ export default function GameDemo() {
       }
 
       if (finalDamage > 0) {
-          dealDamage({player: newPlayer, enemies: newEnemies}, activeEnemy, newPlayer, finalDamage, currentActionLogs);
+          dealDamage(g, activeEnemy, newPlayer, finalDamage, currentActionLogs);
       }
 
       // --- END DAMAGE BLOCK ---
@@ -1093,16 +1259,20 @@ export default function GameDemo() {
                  activeEnemy.block += eff.amount;
                  currentActionLogs.push(`${activeEnemy.name} gained ${eff.amount} Block`);
              }
-             // Handle Scaling for Burn (Shaman)
-             else if (eff.status === StatusEffect.BURNING && move.statusScaling === ScalingFactor.AUGMENT) {
+             // Handle Scaling for Burn (Shaman) - FIXED: Changed BURNING to BURN
+             else if (eff.status === StatusEffect.BURN && move.statusScaling === ScalingFactor.AUGMENT) {
                  const amount = (activeEnemy.effects[StatusEffect.AUGMENT] || 0);
-                 applyStatus(newPlayer, StatusEffect.BURNING, amount, currentActionLogs);
+                 if (amount > 0) {
+                     applyStatus(g, newPlayer, StatusEffect.BURN, amount, currentActionLogs);
+                 } else {
+                     currentActionLogs.push(`${activeEnemy.name}'s Dragonfire fizzles (0 Augment)`);
+                 }
              }
              // Fix: Added BLOODTHIRST and RAGE to self-targeting effects
              else if (eff.status === StatusEffect.EVASION || eff.status === StatusEffect.BLOODTHIRST || eff.status === StatusEffect.RAGE) {
-                 applyStatus(activeEnemy, eff.status, eff.amount, currentActionLogs);
+                 applyStatus(g, activeEnemy, eff.status, eff.amount, currentActionLogs);
              }
-             else applyStatus(newPlayer, eff.status, eff.amount, currentActionLogs);
+             else applyStatus(g, newPlayer, eff.status, eff.amount, currentActionLogs);
           });
       }
       
@@ -1287,8 +1457,14 @@ export default function GameDemo() {
              if (discardableIndices.length > 0) {
                  const randIdx = discardableIndices[Math.floor(Math.random() * discardableIndices.length)];
                  const discarded = newPlayer.hand.splice(randIdx, 1)[0];
-                 newPlayer.discardPile.push(discarded);
-                 addNotification(`Binding Trap discarded ${discarded.name}!`, 'damage');
+                 
+                 // UPDATED: Volatile Check for Trap Discard
+                 if (discarded.volatile) {
+                     addNotification(`Binding Trap: ${discarded.name} (Volatile) Exhausted!`, 'damage');
+                 } else {
+                     newPlayer.discardPile.push(discarded);
+                     addNotification(`Binding Trap discarded ${discarded.name}!`, 'damage');
+                 }
              }
         });
     }
@@ -1351,7 +1527,9 @@ export default function GameDemo() {
             if(u.effects[StatusEffect.BURN] <= 0) delete u.effects[StatusEffect.BURN];
         }
         if (u.effects[StatusEffect.BLEED]) {
-            u.currentHealth -= u.effects[StatusEffect.BLEED];
+            const bleedDmg = u.effects[StatusEffect.BLEED];
+            u.currentHealth -= bleedDmg;
+            addNotification(`${u.name} took ${bleedDmg} Bleed damage!`, 'damage');
         }
     });
 
@@ -1359,7 +1537,11 @@ export default function GameDemo() {
     if (newEnemies.every(e => e.currentHealth <= 0)) {
         setPlayer(newPlayer);
         setEnemies(newEnemies);
-        setTimeout(() => setScreen('REWARD'), 1000);
+        if (gameMode === 'BALANCE') {
+            setTimeout(() => setScreen('BALANCE_VICTORY'), 1000);
+        } else {
+            setTimeout(() => setScreen('REWARD'), 1000);
+        }
         return;
     }
 
@@ -1541,12 +1723,22 @@ export default function GameDemo() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-8 relative">
         
+        {/* Classic Mode Button */}
         <button 
           disabled={!isReady}
-          onClick={startGame} 
-          className="fixed bottom-6 right-6 z-50 md:absolute md:top-8 md:right-8 md:bottom-auto px-6 py-3 md:px-8 md:py-3 bg-green-700 hover:bg-green-600 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-bold text-lg shadow-lg flex items-center gap-2 transition-all"
+          onClick={() => { setGameMode('CLASSIC'); startGame(); }} 
+          className="fixed bottom-20 right-6 z-50 md:absolute md:top-8 md:right-8 md:bottom-auto px-6 py-3 md:px-8 md:py-3 bg-green-700 hover:bg-green-600 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-bold text-lg shadow-lg flex items-center gap-2 transition-all"
         >
-          Embark <ArrowRight size={20} />
+          Classic Mode <ArrowRight size={20} />
+        </button>
+
+        {/* Balance Mode Button */}
+        <button 
+          disabled={!isReady}
+          onClick={handleBalanceModeSetup}
+          className="fixed bottom-6 right-6 z-50 md:absolute md:top-24 md:right-8 md:bottom-auto px-6 py-3 md:px-8 md:py-3 bg-purple-700 hover:bg-purple-600 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-bold text-lg shadow-lg flex items-center gap-2 transition-all"
+        >
+          Balance Mode <Sword size={20} />
         </button>
 
         <h2 className="text-3xl font-serif mb-2 mt-4 md:mt-0 text-center">Draft Starting Deck</h2>
@@ -1560,7 +1752,7 @@ export default function GameDemo() {
             <div className="flex justify-center gap-6">
                 {draftSkills.map(card => (
                   <div key={card.id} className="cursor-pointer hover:scale-105 transition-transform" onClick={() => setDraftSelections(prev => ({...prev, skill: card}))}>
-                      <CardView card={card} selected={draftSelections.skill?.id === card.id} />
+                      <CardView card={card} selected={draftSelections.skill?.id === card.id} onLongPress={setPreviewCard} />
                   </div>
                 ))}
             </div>
@@ -1572,15 +1764,94 @@ export default function GameDemo() {
              <div className="flex justify-center gap-6">
                 {draftPowers.map(card => (
                   <div key={card.id} className="cursor-pointer hover:scale-105 transition-transform" onClick={() => setDraftSelections(prev => ({...prev, power: card}))}>
-                      <CardView card={card} selected={draftSelections.power?.id === card.id} />
+                      <CardView card={card} selected={draftSelections.power?.id === card.id} onLongPress={setPreviewCard} />
                   </div>
                 ))}
             </div>
           </div>
 
         </div>
+        
+        {/* Preview Overlay Triggered here as well */}
+        {previewCard && <CardPreviewOverlay card={previewCard} onClose={() => setPreviewCard(null)} />}
       </div>
     );
+  }
+
+  if (screen === 'BALANCE_SETUP') {
+      const availableMinions = Object.values(MINIONS_DB);
+
+      return (
+          <div className="flex flex-col items-center min-h-screen bg-slate-900 text-white p-8">
+              <h2 className="text-3xl font-serif text-purple-400 mb-4">Balance Mode Setup</h2>
+              <p className="text-slate-400 mb-8">Create a custom encounter. (Max 5 minions)</p>
+
+              {/* Selection Area */}
+              <div className="flex flex-col md:flex-row gap-8 w-full max-w-6xl flex-1 overflow-hidden">
+                  
+                  {/* Available Minions Pool */}
+                  <div className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 overflow-y-auto h-[60vh]">
+                      <h3 className="font-bold text-lg mb-4 sticky top-0 bg-slate-800 py-2 border-b border-slate-600">Available Minions</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                          {availableMinions.map(minion => (
+                              <div key={minion.id} 
+                                   onClick={() => {
+                                       if (customEnemies.length < 5) {
+                                           setCustomEnemies([...customEnemies, minion]);
+                                       } else {
+                                           addNotification("Max 5 minions allowed!", "info");
+                                       }
+                                   }}
+                                   className="bg-slate-700 p-2 rounded cursor-pointer hover:bg-slate-600 hover:scale-105 transition-all border border-slate-600 flex flex-col items-center">
+                                  <Skull className="w-8 h-8 mb-2 text-red-400" />
+                                  <div className="font-bold text-sm text-center">{minion.name}</div>
+                                  <div className="text-xs text-slate-400">{minion.grade}-Tier</div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+
+                  {/* Selected Team */}
+                  <div className="w-full md:w-1/3 bg-purple-900/20 p-4 rounded-xl border border-purple-500 flex flex-col">
+                      <h3 className="font-bold text-lg mb-4 text-purple-300">Encounter Team ({customEnemies.length}/5)</h3>
+                      <div className="flex-1 space-y-2 overflow-y-auto mb-4">
+                          {customEnemies.length === 0 && <div className="text-slate-500 text-center italic mt-10">Select minions to add them here...</div>}
+                          {customEnemies.map((enemy, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                  <span className="font-bold text-sm">{enemy.name}</span>
+                                  <button 
+                                    onClick={() => {
+                                        const newEnemies = [...customEnemies];
+                                        newEnemies.splice(idx, 1);
+                                        setCustomEnemies(newEnemies);
+                                    }}
+                                    className="text-red-400 hover:text-red-200"
+                                  >
+                                      <Trash2 size={16} />
+                                  </button>
+                              </div>
+                          ))}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                          <button 
+                            onClick={() => setScreen('DRAFT')}
+                            className="flex-1 py-3 border border-slate-500 rounded hover:bg-slate-700 font-bold text-slate-300"
+                          >
+                              Cancel
+                          </button>
+                          <button 
+                            disabled={customEnemies.length === 0}
+                            onClick={startCustomEncounter}
+                            className="flex-[2] py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded font-bold text-white shadow-lg"
+                          >
+                              Confirm Fight
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      );
   }
 
   if (screen === 'COMBAT') {
@@ -1621,7 +1892,7 @@ export default function GameDemo() {
                     </div>
                     <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4 border border-slate-700 rounded bg-slate-900/50 justify-items-center">
                         {viewingPile.cards.map((c, i) => (
-                             <div key={i} className="scale-90 origin-top"><CardView card={c} playable={false} /></div>
+                             <div key={i} className="scale-90 origin-top"><CardView card={c} playable={false} onLongPress={setPreviewCard} /></div>
                         ))}
                     </div>
                 </div>
@@ -1662,7 +1933,7 @@ export default function GameDemo() {
                 <div className="flex flex-wrap justify-center gap-4 md:gap-8">
                     {craftingOptions.map(card => (
                         <div key={card.id} onClick={() => handleCraftSelection(card)} className="cursor-pointer hover:scale-110 transition-transform scale-90 md:scale-100">
-                            <CardView card={card} />
+                            <CardView card={card} onLongPress={setPreviewCard} />
                         </div>
                     ))}
                 </div>
@@ -1687,7 +1958,7 @@ export default function GameDemo() {
                                         setTempSelection(prev => [...prev, card.id]);
                                     }
                                 }} className={`cursor-pointer transition-transform hover:scale-105 scale-90 md:scale-100 relative`}>
-                                    <CardView card={card} selected={isSelected} />
+                                    <CardView card={card} selected={isSelected} onLongPress={setPreviewCard} />
                                     {isSelected && <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/30 rounded-xl"><Check className="text-white w-12 h-12 drop-shadow-lg" /></div>}
                                 </div>
                             );
@@ -1726,9 +1997,14 @@ export default function GameDemo() {
             </div>
         )}
 
+        {/* PREVIEW CARD OVERLAY */}
+        {previewCard && <CardPreviewOverlay card={previewCard} onClose={() => setPreviewCard(null)} />}
+
         {/* Header */}
         <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-2">
-          <div className="font-bold text-sm md:text-xl text-center md:text-left w-full md:w-auto">The Forest - Step {step}/10</div>
+          <div className="font-bold text-sm md:text-xl text-center md:text-left w-full md:w-auto">
+              {gameMode === 'BALANCE' ? 'Balance Test' : `The Forest - Step ${step}/10`}
+          </div>
           <div className="flex gap-4 text-xs md:text-sm text-slate-400 mt-1 md:mt-0">
              <div className="font-mono">TURN {turn}</div>
           </div>
@@ -1849,9 +2125,14 @@ export default function GameDemo() {
           <div className="w-full h-48 md:h-64 overflow-x-auto overflow-y-hidden pb-4 pt-8 px-4">
             <div className="flex justify-start md:justify-center items-end gap-2 md:gap-4 min-w-max mx-auto">
                 {player?.hand.map((card, idx) => (
-                <div key={idx} onClick={() => card.target === CardTarget.SINGLE ? setSelectedCard(selectedCard === card ? null : card) : playCard(card)} 
-                    className={`flex-shrink-0 transform transition-all duration-200 hover:-translate-y-8 md:hover:-translate-y-12 hover:scale-105 z-0 hover:z-10 ${selectedCard === card ? '-translate-y-8 md:-translate-y-12 ring-4 ring-yellow-400 rounded-xl z-10' : ''} ${player?.costModifiers.some(m => !m.cardType || m.cardType === card.type) ? 'ring-2 ring-red-500' : ''}`}>
-                    <CardView card={card} playable={player.energy >= getCardCost(card, player)} costDisplay={getCardCost(card, player)} />
+                <div key={idx} className={`flex-shrink-0 transform transition-all duration-200 hover:-translate-y-8 md:hover:-translate-y-12 hover:scale-105 z-0 hover:z-10 ${selectedCard === card ? '-translate-y-8 md:-translate-y-12 ring-4 ring-yellow-400 rounded-xl z-10' : ''} ${player?.costModifiers.some(m => !m.cardType || m.cardType === card.type) ? 'ring-2 ring-red-500' : ''}`}>
+                    <CardView 
+                        card={card} 
+                        playable={player.energy >= getCardCost(card, player)} 
+                        costDisplay={getCardCost(card, player)}
+                        onClick={() => card.target === CardTarget.SINGLE ? setSelectedCard(selectedCard === card ? null : card) : playCard(card)}
+                        onLongPress={setPreviewCard}
+                    />
                 </div>
                 ))}
             </div>
@@ -1884,14 +2165,34 @@ export default function GameDemo() {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
         <h2 className="text-4xl font-bold text-yellow-500 mb-4">Victory!</h2>
+        
+        {/* Added CardPreviewOverlay here */}
+        {previewCard && <CardPreviewOverlay card={previewCard} onClose={() => setPreviewCard(null)} />}
+
         <p className="mb-8 text-slate-400">Choose a card to add to your deck</p>
         <div className="flex gap-8">
             {rewards.map((c, i) => (
-                <div key={i} onClick={() => pickReward(c)} className="cursor-pointer hover:scale-105 transition-transform">
-                    <CardView card={c} />
+                <div key={i} className="cursor-pointer hover:scale-105 transition-transform">
+                    <CardView card={c} onClick={() => pickReward(c)} onLongPress={setPreviewCard} />
                 </div>
             ))}
         </div>
+      </div>
+    );
+  }
+
+  if (screen === 'BALANCE_VICTORY') {
+      return (
+      <div className="flex flex-col items-center justify-center h-screen bg-purple-900 text-white">
+        <h2 className="text-6xl font-serif font-bold text-yellow-400 mb-4">Victory!</h2>
+        <p className="mb-12 text-purple-200 text-xl">Balance test concluded successfully.</p>
+        
+        <button 
+            onClick={() => setScreen('CLASS_SELECT')} 
+            className="px-8 py-4 bg-slate-800 hover:bg-slate-700 border-2 border-slate-500 rounded text-xl font-bold flex items-center gap-2 transition-all"
+        >
+            <ChevronRight className="rotate-180" /> Go Back
+        </button>
       </div>
     );
   }
@@ -1939,15 +2240,92 @@ const KeywordText = ({ text }) => {
   );
 };
 
-const CardView = ({ card, selected, playable = true, costDisplay, onClick }) => {
+const CardPreviewOverlay = ({ card, onClose }) => {
+    if (!card) return null;
+
+    const foundKeywords = [];
+    if (card.description) {
+        const matches = card.description.match(KEYWORD_REGEX);
+        if (matches) {
+            matches.forEach(m => {
+                const key = Object.keys(KEYWORDS).find(k => k.toLowerCase() === m.toLowerCase());
+                if (key && !foundKeywords.includes(key)) foundKeywords.push(key);
+            });
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="scale-150 mb-8 pointer-events-none">
+                <CardView card={card} playable={true} />
+            </div>
+            
+            <div className="w-full max-w-md space-y-4">
+                <div className="text-center text-slate-400 text-sm animate-pulse mb-4">Tap anywhere to close</div>
+                
+                {foundKeywords.length > 0 ? (
+                    <div className="space-y-3">
+                        {foundKeywords.map(key => (
+                            <div key={key} className="bg-slate-800 border border-slate-600 rounded p-3">
+                                <div className="text-yellow-500 font-bold mb-1">{key}</div>
+                                <div className="text-white text-sm">{KEYWORDS[key]}</div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center text-slate-500 italic">No special keywords.</div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLongPress }) => {
   const border = card.rarity === CardRarity.COMMON ? 'border-slate-400' : card.rarity === CardRarity.TOKEN ? 'border-yellow-200' : 'border-purple-500';
   const displayCost = costDisplay !== undefined ? costDisplay : card.cost;
   const costColor = displayCost > card.cost ? 'text-red-500' : displayCost < card.cost ? 'text-green-400' : 'text-white';
 
+  // Long Press Logic
+  const timerRef = useRef(null);
+  const isLongPress = useRef(false);
+
+  const handleStart = () => {
+    isLongPress.current = false;
+    timerRef.current = setTimeout(() => {
+      isLongPress.current = true;
+      if (onLongPress) onLongPress(card);
+    }, 500); // 500ms threshold
+  };
+
+  const handleEnd = (e) => {
+    if (timerRef.current) {
+        clearTimeout(timerRef.current);
+    }
+    // Prevent phantom clicks on mobile if long press occurred
+    if (isLongPress.current) {
+       if (e.cancelable) e.preventDefault();
+    }
+  };
+
+  const handleClick = (e) => {
+      if (isLongPress.current) {
+          e.stopPropagation();
+          return;
+      }
+      if (onClick) onClick();
+  };
+
   return (
     <div 
-      onClick={onClick}
-      className={`w-24 h-36 md:w-32 md:h-48 bg-slate-800 rounded-xl border-2 ${border} p-2 md:p-3 flex flex-col relative shadow-xl ${!playable ? 'opacity-50 grayscale' : ''} ${selected ? 'ring-4 ring-yellow-400' : ''}`}
+      onTouchStart={handleStart}
+      onTouchEnd={handleEnd}
+      onMouseDown={handleStart}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleEnd}
+      onClick={handleClick}
+      onContextMenu={(e) => e.preventDefault()} // Prevent context menu on long press
+      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }} // FIXED: Explicitly prevent iOS callouts and selection
+      className={`w-24 h-36 md:w-32 md:h-48 bg-slate-800 rounded-xl border-2 ${border} p-2 md:p-3 flex flex-col relative shadow-xl ${!playable ? 'opacity-50 grayscale' : ''} ${selected ? 'ring-4 ring-yellow-400' : ''} select-none`}
     >
       {/* Cost */}
       <div className={`absolute -top-2 -left-2 md:-top-3 md:-left-3 w-5 h-5 md:w-6 md:h-6 bg-blue-600 rounded-full flex items-center justify-center font-bold border-2 border-white z-10 text-xs md:text-sm ${costColor}`}>
