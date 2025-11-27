@@ -1960,7 +1960,7 @@ export default function GameDemo() {
                       <div className="absolute -top-2 -right-2 bg-blue-900 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-blue-500 shadow-sm">
                           {player.block}
                       </div>
-                       <div className="absolute bottom-full left-0 mb-2 w-max px-2 py-1 bg-black border border-blue-500 rounded text-xs text-blue-100 hidden group-hover:block">
+                       <div className="absolute bottom-full left-0 mb-2 w-max px-2 py-1 bg-black border border-blue-500 rounded text-xs text-blue-100 hidden group-hover:block z-50 shadow-xl text-left">
                           Block {player.block}
                       </div>
                   </div>
@@ -2217,7 +2217,7 @@ const CardPreviewOverlay = ({ card, onClose }) => {
     );
 };
 
-const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLongPress }) => {
+const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLongPress, onLongPressEnd }: any) => {
   const border = card.rarity === CardRarity.COMMON ? 'border-slate-600' : card.rarity === CardRarity.TOKEN ? 'border-yellow-200' : 'border-purple-500/50';
   const displayCost = costDisplay !== undefined ? costDisplay : card.cost;
   const costColor = displayCost > card.cost ? 'bg-red-600' : displayCost < card.cost ? 'bg-green-600' : 'bg-blue-600';
@@ -2239,6 +2239,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
     }
     if (isLongPress.current) {
        if (e.cancelable) e.preventDefault();
+       if (onLongPressEnd) onLongPressEnd();
     }
   };
 
