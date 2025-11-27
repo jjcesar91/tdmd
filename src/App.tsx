@@ -586,8 +586,7 @@ const MINIONS_DB = {
     moves: [
       { id: 'maul', name: 'Maul', description: '8 Dmg + Dazed', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 8, statusEffects: [{status: StatusEffect.DAZED, amount: 1, target: 'Player'}] },
       { id: 'fury', name: 'Fury', description: 'Gain Rage', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, statusEffects: [{status: StatusEffect.RAGE, amount: 1}] },
-      // FIX: Removed 'damage: 16' so it purely executes Maul x2 (8+8 = 16 total) instead of 16 + 8 + 8.
-      { id: 'cornered', name: 'Cornered Menace', description: 'Maul x2', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, mechanic: { executeMoves: ['maul', 'maul'] } }
+      { id: 'cornered', name: 'Cornered Menace', description: 'Maul x2', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 16, mechanic: { executeMoves: ['maul', 'maul'] } }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'blowgun_blight': {
@@ -596,8 +595,7 @@ const MINIONS_DB = {
     moves: [
       { id: 'blow', name: 'Blow', description: '4 Dmg + 2 Poison', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 4, statusEffects: [{status: StatusEffect.POISON, amount: 2, target: 'Player'}] },
       { id: 'dirk', name: 'Thorn Dirk', description: '6 Dmg', category: EnemyMoveCategory.TACTIC, intentType: IntentType.ATTACK, damage: 6 },
-      // UPDATED: Added 'increaseDebuffs' mechanic to Miasma
-      { id: 'miasma', name: 'Miasma', description: '+1 Debuffs + 2 Evasion', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 2}], mechanic: { increaseDebuffs: { amount: 1 } } }
+      { id: 'miasma', name: 'Miasma', description: '+1 Debuffs + 2 Evasion', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 2}] }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
   'ambusher_blight': {
@@ -1317,28 +1315,6 @@ export default function GameDemo() {
               currentActionLogs.push(`Milled: ${milledCards.join(', ')}`);
           }
       }
-
-      // UPDATED: Handle Mechanic: Increase Debuffs (Miasma)
-      if (move.mechanic && move.mechanic.increaseDebuffs) {
-          const { amount } = move.mechanic.increaseDebuffs;
-          // Create a copy of effects to ensure React reactivity
-          newPlayer.effects = { ...newPlayer.effects };
-          
-          let worsenedDebuffs = [];
-          
-          DEBUFFS.forEach(debuff => {
-              if (newPlayer.effects[debuff] && newPlayer.effects[debuff] > 0) {
-                  newPlayer.effects[debuff] += amount;
-                  worsenedDebuffs.push(debuff);
-              }
-          });
-
-          if (worsenedDebuffs.length > 0) {
-              currentActionLogs.push(`Miasma worsened: ${worsenedDebuffs.join(', ')} (+${amount})`);
-          } else {
-              currentActionLogs.push("Miasma found no debuffs to worsen.");
-          }
-      }
       
       if (move.mechanic && move.mechanic.dealDamageToSelf && move.mechanic.dealDamageToSelf.type === 'CurrentHP') {
             const selfDmg = activeEnemy.currentHealth;
@@ -1914,49 +1890,49 @@ export default function GameDemo() {
         )}
 
       {/* HEADER */}
-      <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 shadow-lg z-10">
-          <div className="flex items-center gap-4">
+      <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-2 md:px-4 shadow-lg z-10">
+          <div className="flex items-center gap-2 md:gap-4">
               <div className="flex flex-col">
-                  <span className="text-xs text-slate-400 uppercase tracking-widest font-bold">Player</span>
-                  <span className="font-bold text-lg flex items-center gap-2">
-                      <User className="w-4 h-4" /> {player.name}
+                  <span className="hidden md:block text-xs text-slate-400 uppercase tracking-widest font-bold">Player</span>
+                  <span className="font-bold text-sm md:text-lg flex items-center gap-2">
+                      <User className="w-3 h-3 md:w-4 md:h-4" /> {player.name}
                   </span>
               </div>
-              <div className="h-8 w-px bg-slate-700 mx-2"></div>
-              <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2 text-red-400" title="Health">
-                      <Heart className="w-5 h-5 fill-current" />
-                      <span className="font-mono text-xl font-bold">{player.currentHealth}/{player.maxHealth}</span>
+              <div className="h-6 md:h-8 w-px bg-slate-700 mx-1 md:mx-2"></div>
+              <div className="flex items-center gap-2 md:gap-6">
+                  <div className="flex items-center gap-1 md:gap-2 text-red-400" title="Health">
+                      <Heart className="w-3 h-3 md:w-5 md:h-5 fill-current" />
+                      <span className="font-mono text-sm md:text-xl font-bold">{player.currentHealth}/{player.maxHealth}</span>
                   </div>
                   {/* Block removed from Header to simplify HUD */}
-                  <div className="flex items-center gap-2 text-cyan-400" title="Mana">
+                  <div className="flex items-center gap-1 md:gap-2 text-cyan-400" title="Mana">
                       <div className="relative">
-                        <Zap className="w-6 h-6 fill-current animate-pulse" />
+                        <Zap className="w-4 h-4 md:w-6 md:h-6 fill-current animate-pulse" />
                       </div>
-                      <span className="font-mono text-xl font-bold">{player.energy}/{player.maxEnergy}</span>
+                      <span className="font-mono text-sm md:text-xl font-bold">{player.energy}/{player.maxEnergy}</span>
                   </div>
               </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
              <div className="text-right hidden md:block">
                  <div className="text-xs text-slate-500 uppercase">Turn</div>
                  <div className="font-mono text-xl font-bold">{turn}</div>
              </div>
-             <div className="h-8 w-px bg-slate-700 mx-2"></div>
+             <div className="h-6 md:h-8 w-px bg-slate-700 mx-1 md:mx-2"></div>
              
              <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={() => setShowEquipment(true)}>
                 <Package size={16} className="md:w-5 md:h-5"/>
-                <span className="text-[10px] uppercase">Equip</span>
+                <span className="text-[8px] md:text-[10px] uppercase">Equip</span>
              </div>
 
              <div className="flex flex-col items-end cursor-pointer hover:text-white" onClick={openDrawPile}>
-                 <div className="text-xs text-slate-500 uppercase">Deck</div>
+                 <div className="hidden md:block text-xs text-slate-500 uppercase">Deck</div>
                  <div className="flex items-center gap-1 text-slate-300">
                      <Layers className="w-4 h-4" /> {player.drawPile.length}
                  </div>
              </div>
              <div className="flex flex-col items-end cursor-pointer hover:text-white" onClick={openDiscardPile}>
-                 <div className="text-xs text-slate-500 uppercase">Discard</div>
+                 <div className="hidden md:block text-xs text-slate-500 uppercase">Discard</div>
                  <div className="flex items-center gap-1 text-slate-300">
                      <Trash2 className="w-4 h-4" /> {player.discardPile.length}
                  </div>
@@ -2055,7 +2031,7 @@ export default function GameDemo() {
       </div>
 
       {/* HAND AREA */}
-      <div className="h-56 bg-slate-900 border-t border-slate-800 relative flex items-end justify-center pb-4 gap-2 px-4 z-20">
+      <div className="h-48 md:h-56 bg-slate-900 border-t border-slate-800 relative flex items-end justify-center pb-2 md:pb-4 gap-2 px-2 md:px-4 z-20">
           
           {/* End Turn Button */}
           <div className="absolute top-0 right-4 -translate-y-1/2">
@@ -2071,7 +2047,7 @@ export default function GameDemo() {
           </div>
 
           {/* Cards */}
-          <div className="flex items-end justify-center -space-x-4 hover:space-x-1 transition-all duration-300 perspective-1000 min-w-max mx-auto px-12">
+          <div className="flex items-end justify-center -space-x-6 md:-space-x-4 hover:space-x-1 transition-all duration-300 perspective-1000 w-full px-2 md:px-12">
             {player.hand.map((card, index) => {
                const canPlay = player.energy >= getCardCost(card, player);
                const isSelected = selectedCard === card;
@@ -2285,7 +2261,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
       onContextMenu={(e) => e.preventDefault()}
       style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }} 
       className={`
-        w-32 md:w-40 aspect-[2/3] rounded-xl border-2 shadow-2xl flex flex-col p-2 select-none relative
+        w-20 md:w-40 aspect-[2/3] rounded-xl border-2 shadow-2xl flex flex-col p-2 select-none relative
         bg-gradient-to-br from-slate-800 to-slate-900
         ${border}
         ${!playable ? 'opacity-60 grayscale-[0.5]' : ''}
@@ -2295,40 +2271,40 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
     >
       {/* Header: Cost & Name */}
       <div className="flex justify-between items-start mb-1">
-          <div className={`${costColor} text-white w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center font-bold text-sm md:text-lg shadow-md border border-blue-400 relative z-10 -ml-1 -mt-1`}>
+          <div className={`${costColor} text-white w-5 h-5 md:w-8 md:h-8 rounded-full flex items-center justify-center font-bold text-xs md:text-lg shadow-md border border-blue-400 relative z-10 -ml-1 -mt-1`}>
               {displayCost}
           </div>
-          <div className="text-[10px] md:text-xs font-bold text-slate-200 text-right leading-tight max-w-[70%]">
+          <div className="text-[8px] md:text-xs font-bold text-slate-200 text-right leading-tight max-w-[70%]">
               {card.name}
           </div>
       </div>
       
       {/* Art Placeholder */}
       <div className="flex-1 bg-slate-950 rounded border border-slate-800 mb-2 relative overflow-hidden flex items-center justify-center transition-colors">
-        {card.type === CardType.ATTACK ? <Sword className="w-8 h-8 md:w-12 md:h-12 text-red-500/80" /> : card.type === CardType.SKILL ? <Shield className="w-8 h-8 md:w-12 md:h-12 text-blue-500/80" /> : <Zap className="w-8 h-8 md:w-12 md:h-12 text-yellow-500/80" />}
+        {card.type === CardType.ATTACK ? <Sword className="w-3 h-3 md:w-12 md:h-12 text-red-500/80" /> : card.type === CardType.SKILL ? <Shield className="w-3 h-3 md:w-12 md:h-12 text-blue-500/80" /> : <Zap className="w-3 h-3 md:w-12 md:h-12 text-yellow-500/80" />}
         
         {/* Type Icon Corner */}
         <div className="absolute bottom-1 right-1 text-slate-600">
-            {card.type === CardType.ATTACK ? <Sword className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.TRAP ? <Anchor className="w-4 h-4 md:w-5 md:h-5" /> : <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />}
+            {card.type === CardType.ATTACK ? <Sword className="w-3 h-3 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-3 h-3 md:w-5 md:h-5" /> : card.type === CardType.TRAP ? <Anchor className="w-3 h-3 md:w-5 md:h-5" /> : <RefreshCw className="w-3 h-3 md:w-5 md:h-5" />}
         </div>
       </div>
       
       {/* Description */}
-      <div className="text-[8px] md:text-[10px] text-center text-slate-300 leading-tight h-8 md:h-12 relative flex items-center justify-center">
+      <div className="text-[6px] md:text-[10px] text-center text-slate-300 leading-tight h-8 md:h-12 relative flex items-center justify-center">
         <KeywordText text={card.description} />
       </div>
 
       {/* Classes */}
       <div className="flex justify-center gap-1 flex-wrap mb-1 px-1">
           {card.cardClass?.map((c, i) => (
-              <span key={i} className="text-[6px] uppercase font-bold text-slate-400 bg-slate-900/50 px-1 rounded">
+              <span key={i} className="text-[5px] md:text-[6px] uppercase font-bold text-slate-400 bg-slate-900/50 px-1 rounded">
                   {c}
               </span>
           ))}
       </div>
       
       {/* Footer */}
-      <div className="mt-auto pt-1 text-[6px] md:text-[8px] text-center text-slate-500 font-mono uppercase truncate border-t border-slate-800/50">
+      <div className="mt-auto pt-1 text-[5px] md:text-[8px] text-center text-slate-500 font-mono uppercase truncate border-t border-slate-800/50">
         {card.type} - {card.rarity}
       </div>
     </div>
