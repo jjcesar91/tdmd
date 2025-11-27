@@ -1685,7 +1685,7 @@ export default function GameDemo() {
             <div className="flex justify-center gap-6">
                 {draftSkills.map(card => (
                   <div key={card.id} className="cursor-pointer hover:scale-105 transition-transform" onClick={() => setDraftSelections(prev => ({...prev, skill: card}))}>
-                      <CardView card={card} selected={draftSelections.skill?.id === card.id} onLongPress={setPreviewCard} />
+                      <CardView card={card} selected={draftSelections.skill?.id === card.id} onLongPress={setPreviewCard} onLongPressEnd={() => setPreviewCard(null)} />
                   </div>
                 ))}
             </div>
@@ -1696,7 +1696,7 @@ export default function GameDemo() {
              <div className="flex justify-center gap-6">
                 {draftPowers.map(card => (
                   <div key={card.id} className="cursor-pointer hover:scale-105 transition-transform" onClick={() => setDraftSelections(prev => ({...prev, power: card}))}>
-                      <CardView card={card} selected={draftSelections.power?.id === card.id} onLongPress={setPreviewCard} />
+                      <CardView card={card} selected={draftSelections.power?.id === card.id} onLongPress={setPreviewCard} onLongPressEnd={() => setPreviewCard(null)} />
                   </div>
                 ))}
             </div>
@@ -1810,7 +1810,7 @@ export default function GameDemo() {
                     </div>
                     <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4 border border-slate-700 rounded bg-slate-900/50 justify-items-center">
                         {viewingPile.cards.map((c, i) => (
-                             <div key={i} className="scale-90 origin-top"><CardView card={c} playable={false} onLongPress={setPreviewCard} /></div>
+                             <div key={i} className="scale-90 origin-top"><CardView card={c} playable={false} onLongPress={setPreviewCard} onLongPressEnd={() => setPreviewCard(null)} /></div>
                         ))}
                     </div>
                 </div>
@@ -1851,7 +1851,7 @@ export default function GameDemo() {
                                         setTempSelection(prev => [...prev, card.id]);
                                     }
                                 }} className={`cursor-pointer transition-transform hover:scale-105 scale-90 md:scale-100 relative`}>
-                                    <CardView card={card} selected={isSelected} />
+                                    <CardView card={card} selected={isSelected} onLongPress={setPreviewCard} onLongPressEnd={() => setPreviewCard(null)} />
                                     {isSelected && <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/30 rounded-xl"><Check className="text-white w-12 h-12 drop-shadow-lg" /></div>}
                                 </div>
                             );
@@ -1888,6 +1888,8 @@ export default function GameDemo() {
                 </div>
             </div>
         )}
+
+        {previewCard && <CardPreviewOverlay card={previewCard} onClose={() => setPreviewCard(null)} />}
 
       {/* HEADER */}
       <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-2 md:px-4 shadow-lg z-10">
@@ -2076,6 +2078,8 @@ export default function GameDemo() {
                         playable={canPlay} 
                         costDisplay={getCardCost(card, player)}
                         selected={isSelected}
+                        onLongPress={setPreviewCard}
+                        onLongPressEnd={() => setPreviewCard(null)}
                     />
                 </div>
                );
@@ -2112,7 +2116,7 @@ export default function GameDemo() {
         <div className="flex gap-8">
             {rewards.map((c, i) => (
                 <div key={i} className="cursor-pointer hover:scale-105 transition-transform">
-                    <CardView card={c} onClick={() => pickReward(c)} onLongPress={setPreviewCard} />
+                    <CardView card={c} onClick={() => pickReward(c)} onLongPress={setPreviewCard} onLongPressEnd={() => setPreviewCard(null)} />
                 </div>
             ))}
         </div>
