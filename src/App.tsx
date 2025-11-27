@@ -2032,8 +2032,8 @@ export default function GameDemo() {
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-1 z-30 pointer-events-none">
               {Array.from({ length: player.energy }).map((_, i) => (
                   <div key={i} className="relative animate-in zoom-in duration-300">
-                      <div className="bg-cyan-900/80 p-2 rounded-full border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]">
-                          <Zap className="w-6 h-6 text-cyan-300 fill-cyan-300" />
+                      <div className="bg-cyan-900/80 p-1 rounded-full border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                          <Zap className="w-3 h-3 text-cyan-300 fill-cyan-300" />
                       </div>
                   </div>
               ))}
@@ -2259,6 +2259,13 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
       if (onClick) onClick();
   };
 
+  const renderCost = () => {
+      if (displayCost === 0) return <div className="font-bold text-white drop-shadow-md text-sm">0</div>;
+      return Array.from({ length: displayCost }).map((_, i) => (
+          <Zap key={i} className="w-3 h-3 md:w-4 md:h-4 text-cyan-300 fill-cyan-300 drop-shadow-md" />
+      ));
+  };
+
   return (
     <div 
       onTouchStart={handleStart}
@@ -2270,51 +2277,63 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
       onContextMenu={(e) => e.preventDefault()}
       style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }} 
       className={`
-        w-20 md:w-40 aspect-[2/3] rounded-xl border-2 shadow-2xl flex flex-col p-2 select-none relative
-        bg-gradient-to-br from-slate-800 to-slate-900
+        w-24 md:w-48 aspect-[2/3] rounded-xl border-2 shadow-2xl flex flex-col overflow-hidden relative bg-slate-900
         ${border}
         ${!playable ? 'opacity-60 grayscale-[0.5]' : ''}
         ${selected ? 'ring-4 ring-yellow-400 border-yellow-400' : ''}
         ${playable && !selected ? 'hover:border-yellow-400 hover:shadow-yellow-400/20' : ''}
       `}
     >
-      {/* Header: Cost & Name */}
-      <div className="flex justify-between items-start mb-1">
-          <div className={`${costColor} text-white w-5 h-5 md:w-8 md:h-8 rounded-full flex items-center justify-center font-bold text-xs md:text-lg shadow-md border border-blue-400 relative z-10 -ml-1 -mt-1`}>
-              {displayCost}
-          </div>
-          <div className="text-[8px] md:text-xs font-bold text-slate-200 text-right leading-tight max-w-[70%]">
-              {card.name}
-          </div>
-      </div>
-      
-      {/* Art Placeholder */}
-      <div className="flex-1 bg-slate-950 rounded border border-slate-800 mb-2 relative overflow-hidden flex items-center justify-center transition-colors">
-        {card.type === CardType.ATTACK ? <Sword className="w-3 h-3 md:w-12 md:h-12 text-red-500/80" /> : card.type === CardType.SKILL ? <Shield className="w-3 h-3 md:w-12 md:h-12 text-blue-500/80" /> : <Zap className="w-3 h-3 md:w-12 md:h-12 text-yellow-500/80" />}
-        
-        {/* Type Icon Corner */}
-        <div className="absolute bottom-1 right-1 text-slate-600">
-            {card.type === CardType.ATTACK ? <Sword className="w-3 h-3 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-3 h-3 md:w-5 md:h-5" /> : card.type === CardType.TRAP ? <Anchor className="w-3 h-3 md:w-5 md:h-5" /> : <RefreshCw className="w-3 h-3 md:w-5 md:h-5" />}
-        </div>
-      </div>
-      
-      {/* Description */}
-      <div className="text-[6px] md:text-[10px] text-center text-slate-300 leading-tight h-8 md:h-12 relative flex items-center justify-center">
-        <KeywordText text={card.description} />
+      {/* 1. Image Area (Top ~55%) */}
+      <div className="h-[55%] w-full bg-slate-800 relative flex items-center justify-center overflow-hidden border-b-2 border-slate-700">
+          {/* Background/Art */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-700 to-slate-800 opacity-50"></div>
+          {card.type === CardType.ATTACK ? <Sword className="w-12 h-12 md:w-20 md:h-20 text-red-500/80 relative z-0" /> : 
+           card.type === CardType.SKILL ? <Shield className="w-12 h-12 md:w-20 md:h-20 text-blue-500/80 relative z-0" /> : 
+           <Zap className="w-12 h-12 md:w-20 md:h-20 text-yellow-500/80 relative z-0" />}
+           
+           {/* Cost Icons (Top Right) */}
+           <div className="absolute top-1 right-1 flex flex-col gap-0.5 items-center bg-black/40 p-1 rounded-lg backdrop-blur-sm border border-white/10 z-10 min-w-[20px]">
+               {renderCost()}
+           </div>
       </div>
 
-      {/* Classes */}
-      <div className="flex justify-center gap-1 flex-wrap mb-1 px-1">
-          {card.cardClass?.map((c, i) => (
-              <span key={i} className="text-[5px] md:text-[6px] uppercase font-bold text-slate-400 bg-slate-900/50 px-1 rounded">
-                  {c}
-              </span>
-          ))}
-      </div>
-      
-      {/* Footer */}
-      <div className="mt-auto pt-1 text-[5px] md:text-[8px] text-center text-slate-500 font-mono uppercase truncate border-t border-slate-800/50">
-        {card.type} - {card.rarity}
+      {/* 2. Content Area */}
+      <div className="flex-1 flex flex-col p-1 md:p-2 bg-gradient-to-b from-slate-900 to-slate-950 relative">
+          
+          {/* Name */}
+          <div className="text-center mb-1 md:mb-2 -mt-4 md:-mt-5 relative z-10">
+              <div className="inline-block bg-slate-900 border border-slate-600 px-2 py-0.5 rounded-full shadow-lg">
+                <div className="font-serif font-bold text-[10px] md:text-sm text-yellow-100 leading-tight whitespace-nowrap">
+                    {card.name}
+                </div>
+              </div>
+          </div>
+
+          {/* Description */}
+          <div className="flex-1 flex items-center justify-center overflow-hidden">
+            <div className="text-[8px] md:text-[11px] text-center text-slate-300 leading-tight px-1">
+                <KeywordText text={card.description} />
+            </div>
+          </div>
+
+          {/* Classes/Tags */}
+           <div className="flex justify-center gap-1 flex-wrap mt-1 mb-1">
+              {card.cardClass?.map((c, i) => (
+                  <span key={i} className="text-[5px] md:text-[8px] uppercase font-bold text-slate-500">
+                      {c}
+                  </span>
+              ))}
+          </div>
+
+          {/* Footer: Type & Rarity */}
+          <div className="mt-auto pt-1 border-t border-slate-800 flex justify-between items-center text-[6px] md:text-[9px] text-slate-500 font-mono uppercase">
+              <div className="flex items-center gap-1">
+                {card.type === CardType.ATTACK ? <Sword size={8} /> : card.type === CardType.SKILL ? <Shield size={8} /> : <Zap size={8} />}
+                {card.type}
+              </div>
+              <span>{card.rarity}</span>
+          </div>
       </div>
     </div>
   );
