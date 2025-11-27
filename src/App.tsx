@@ -1906,13 +1906,6 @@ export default function GameDemo() {
                       <Heart className="w-3 h-3 md:w-5 md:h-5 fill-current" />
                       <span className="font-mono text-sm md:text-xl font-bold">{player.currentHealth}/{player.maxHealth}</span>
                   </div>
-                  {/* Block removed from Header to simplify HUD */}
-                  <div className="flex items-center gap-1 md:gap-2 text-cyan-400" title="Mana">
-                      <div className="relative">
-                        <Zap className="w-4 h-4 md:w-6 md:h-6 fill-current animate-pulse" />
-                      </div>
-                      <span className="font-mono text-sm md:text-xl font-bold">{player.energy}/{player.maxEnergy}</span>
-                  </div>
               </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
@@ -2035,6 +2028,17 @@ export default function GameDemo() {
       {/* HAND AREA */}
       <div className="h-48 md:h-56 bg-slate-900 border-t border-slate-800 relative flex items-end justify-center pb-2 md:pb-4 gap-2 px-2 md:px-4 z-20">
           
+          {/* Energy Display */}
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-1 z-30 pointer-events-none">
+              {Array.from({ length: player.energy }).map((_, i) => (
+                  <div key={i} className="relative animate-in zoom-in duration-300">
+                      <div className="bg-cyan-900/80 p-2 rounded-full border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                          <Zap className="w-6 h-6 text-cyan-300 fill-cyan-300" />
+                      </div>
+                  </div>
+              ))}
+          </div>
+
           {/* End Turn Button */}
           <div className="absolute top-0 right-4 -translate-y-1/2">
               <button 
