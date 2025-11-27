@@ -40,7 +40,7 @@ const StatusEffect = {
   EVASION: 'Evasion',
   HOLY_FERVOR: 'Holy Fervor',
   STUN: 'Stun',
-  DAZED: 'Dazed', // Renamed from CONFUSION
+  DAZED: 'Dazed',
   TENACITY: 'Tenacity',
   PROTECTION: 'Protection',
   RAGE: 'Rage',
@@ -64,7 +64,7 @@ const DEBUFFS = [
     StatusEffect.POISON,
     StatusEffect.BURN,
     StatusEffect.STUN,
-    StatusEffect.DAZED, // Updated
+    StatusEffect.DAZED,
     StatusEffect.ENTANGLED,
     StatusEffect.BLIGHTED
 ];
@@ -149,7 +149,7 @@ const KEYWORDS = {
   "Evasion": "Negates the next Attack received. Consumes 1 stack.",
   "Holy Fervor": "Crusader resource. Does not decay. Used to scale specific cards.",
   "Stun": "Unit cannot act for a turn.",
-  "Dazed": "Draw X less cards at the start of next turn.", // Updated Description
+  "Dazed": "Draw X less cards at the start of next turn.",
   "Tenacity": "Increases Block gained from cards by X.",
   "Protection": "Negates the next Debuff applied to the unit.",
   "Innate": "Start with this card in your opening hand.",
@@ -175,7 +175,6 @@ const KEYWORDS = {
   "Weapon Mastery": "Doubles the effectiveness of Main Hand and Off Hand passives."
 };
 
-// Helper regex for keyword extraction
 const KEYWORD_REGEX = new RegExp(`\\b(?:${Object.keys(KEYWORDS).join('|')})\\b`, 'gi');
 
 // --- DATA: EQUIPMENT CONFIG ---
@@ -193,7 +192,6 @@ const EQUIPMENT_DB = {
 
 // --- DATA: CARDS ---
 
-// Helper to make card creation cleaner
 const createCard = (props) => ({
   effect: () => {},
   baseDamage: 0,
@@ -208,21 +206,18 @@ const createCard = (props) => ({
 
 const getEnemy = (g, id) => g.enemies.find(e => e.id === id);
 
-// UPDATED: Now accepts 'g' (game state) to handle global triggers like Bloodthirst
 const applyStatus = (g, target, status, amount, logs = []) => {
   if (!target) return;
-  // Protection Logic
   if (target.effects[StatusEffect.PROTECTION] && DEBUFFS.includes(status)) {
     target.effects[StatusEffect.PROTECTION]--;
     logs.push(`${target.name}: Protection negated ${status}!`);
     if (target.effects[StatusEffect.PROTECTION] <= 0) delete target.effects[StatusEffect.PROTECTION];
-    return; // Blocked
+    return;
   }
   
   target.effects[status] = (target.effects[status] || 0) + amount;
   logs.push(`${target.name}: +${amount} ${status}`);
 
-  // GLOBAL TRIGGER: Bloodthirst
   if (status === StatusEffect.BLEED && g) {
       const allUnits = [g.player, ...g.enemies];
       allUnits.forEach(unit => {
@@ -238,7 +233,6 @@ const drawCards = (g, count) => {
   for (let i = 0; i < count; i++) {
     if (g.player.drawPile.length === 0) {
       if (g.player.discardPile.length === 0) break;
-      // Shuffle discard into draw
       g.player.drawPile = [...g.player.discardPile].sort(() => Math.random() - 0.5);
       g.player.discardPile = [];
     }
@@ -251,10 +245,8 @@ const dealDamage = (g, source, target, amount, logs) => {
   if (!target) return 0;
   let dmg = amount + (source.effects[StatusEffect.STRENGTH] || 0);
   
-  // Weapon Mastery Check
   const masteryMultiplier = (source.effects[StatusEffect.WEAPON_MASTERY] || 0) + 1;
 
-  // Apply Equipment Logic (Shortsword)
   if (!source.isEnemy && source.equipment.includes('shortsword')) {
       dmg += (1 * masteryMultiplier);
   }
@@ -262,28 +254,23 @@ const dealDamage = (g, source, target, amount, logs) => {
   if (source.effects[StatusEffect.WEAK]) dmg = Math.floor(dmg * 0.75);
   if (target.effects[StatusEffect.VULNERABLE]) dmg = Math.floor(dmg * 1.5);
 
-  // BURN MECHANIC: Increase damage taken by Burn stacks
   if (target.effects[StatusEffect.BURN] > 0) {
       dmg += target.effects[StatusEffect.BURN];
   }
   
-  // Evasion Logic
   if (target.effects[StatusEffect.EVASION]) {
     target.effects[StatusEffect.EVASION]--;
     logs.push(`${target.name}: Dodged attack with Evasion!`);
     if (target.effects[StatusEffect.EVASION] <= 0) delete target.effects[StatusEffect.EVASION];
-    return 0; // Miss
+    return 0;
   }
   
-  // Apply Equipment On Hit (Morningstar)
   if (!source.isEnemy && source.equipment.includes('morningstar')) {
-      // Apply X times based on Mastery
       for(let i=0; i<masteryMultiplier; i++) {
          if (Math.random() > 0.5) applyStatus(g, target, StatusEffect.BLEED, 1, logs);
       }
   }
 
-  // Block logic
   let blocked = 0;
   let unblockedDmg = dmg;
   if (target.block > 0) {
@@ -303,7 +290,6 @@ const dealDamage = (g, source, target, amount, logs) => {
     target.currentHealth -= unblockedDmg;
     logs.push(`${target.name} took ${unblockedDmg} damage!`);
     
-    // Trigger Rage
     if (target.effects[StatusEffect.RAGE]) {
         applyStatus(g, target, StatusEffect.STRENGTH, 1, logs);
         logs.push(`${target.name} is Enraged!`);
@@ -366,7 +352,6 @@ const COMMON_CRUSADER_CARDS = [
          g.player.hand.push(atk);
       }
   }}),
-  // UPDATED: At Ready - Triggers Selection UI
   createCard({ 
       id: 'at_ready', 
       name: 'At Ready', 
@@ -383,11 +368,8 @@ const COMMON_CRUSADER_CARDS = [
              count: 2,
              title: 'Choose 2 Attacks to Shuffle',
              logic: (gState, selectedCards, currentLogs) => {
-                 // Filter out the selected cards from discard pile
                  gState.player.discardPile = gState.player.discardPile.filter(c => !selectedCards.some(s => s.id === c.id));
-                 // Add them to draw pile
                  gState.player.drawPile.push(...selectedCards);
-                 // Shuffle
                  gState.player.drawPile.sort(() => Math.random() - 0.5);
                  currentLogs.push(`Shuffled ${selectedCards.map(c => c.name).join(', ')} into deck.`);
              }
@@ -396,7 +378,6 @@ const COMMON_CRUSADER_CARDS = [
   }),
   createCard({ id: 'divine_ward', name: 'Divine Ward', type: CardType.SKILL, cost: 2, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SELF, description: 'Gain 2 Protection.', effect: (g, tid, logs) => applyStatus(g, g.player, StatusEffect.PROTECTION, 2, logs) }),
   createCard({ id: 'holy_smite', name: 'Holy Smite', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.CRUSADER, ClassTag.HOLY], target: CardTarget.SINGLE, description: 'Deal dmg equal to Holy Fervor.', baseDamage: 0, effect: (g, tid, logs) => { const dmg = g.player.effects[StatusEffect.HOLY_FERVOR] || 0; dealDamage(g, g.player, getEnemy(g, tid), dmg, logs || []); g.player.effects[StatusEffect.HOLY_FERVOR] = 0; } }),
-  // UPDATED: Battle Trance
   createCard({ 
       id: 'battle_trance', 
       name: 'Battle Trance', 
@@ -407,7 +388,6 @@ const COMMON_CRUSADER_CARDS = [
       target: CardTarget.SELF, 
       description: 'Condition: Hand only Attacks. Gain 2 Energy.', 
       effect: (g, tid, logs) => {
-          // The check is done in playCard before execution.
           g.player.energy += 2; 
           logs.push("Battle Trance grants 2 Energy.");
       }
@@ -468,7 +448,6 @@ const COMMON_CRUSADER_CARDS = [
 const KNIGHT_CARDS = [
   createCard({ id: 'shield_block', name: 'Shield Block', type: CardType.SKILL, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SELF, description: 'Gain 6 Block. Draw 1.', baseBlock: 6, effect: (g) => drawCards(g, 1) }),
   createCard({ id: 'shield_bash', name: 'Shield Bash', type: CardType.ATTACK, rarity: CardRarity.COMMON, cardClass: [ClassTag.KNIGHT], target: CardTarget.SINGLE, description: 'Deal Dmg equal to Block.', baseDamage: 0, effect: (g, tid, logs) => dealDamage(g, g.player, getEnemy(g, tid), g.player.block, logs || []) }),
-  // UPDATED: Hold Fast - Uses Selection
   createCard({ 
       id: 'hold_fast', 
       name: 'Hold Fast', 
@@ -486,7 +465,6 @@ const KNIGHT_CARDS = [
             title: 'Select a card to Retain',
             logic: (gState, selectedCards, currentLogs) => {
                 if (selectedCards.length > 0) {
-                    // Must find the card instance in the new hand state
                     const target = gState.player.hand.find(c => c.id === selectedCards[0].id);
                     if (target) {
                         target.retain = true;
@@ -543,9 +521,7 @@ const MINIONS_DB = {
     id: 'wolf_spider', name: 'Giant Wolf-Spider', maxHealth: 48, currentHealth: 48, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.A,
     description: "A horrific, overgrown arachnid that entraps its prey before consuming it.",
     moves: [
-      // UPDATED: Spit Web is now BASE
       { id: 'web', name: 'Spit Web', description: 'Apply Entangled', category: EnemyMoveCategory.BASE, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.ENTANGLED, amount: 1, target: 'Player'}] },
-      // UPDATED: Venomous Bite is now TACTIC (5 Dmg + 5 Block + 5 Poison)
       { id: 'bite', name: 'Venomous Bite', description: '5 Dmg + 5 Block + 5 Poison', category: EnemyMoveCategory.TACTIC, intentType: IntentType.ATTACK, damage: 5, statusEffects: [{status: StatusEffect.POISON, amount: 5, target: 'Player'}, {status: StatusEffect.BLOCK, amount: 5}] },
       { id: 'cocoon', name: 'Web Cocoon', description: 'Gain 10 Block. Exhaust 3 Discards.', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.DEFEND, cooldown: 2, statusEffects: [{status: StatusEffect.BLOCK, amount: 10}], mechanic: { burnCards: { source: 'DiscardPile', count: 3 } } } 
     ], lastResortCooldown: 0, hasUsedLastResort: false
@@ -563,11 +539,8 @@ const MINIONS_DB = {
     id: 'kobold_shaman', name: 'Kobold Shaman', maxHealth: 45, currentHealth: 45, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.A,
     description: "A tribal caster who empowers his allies with dragonfire.",
     moves: [
-      // UPDATED: Trickster Chant is now TACTIC and grants +1 Augment
       { id: 'anti', name: 'Trickster Chant', description: '1 Evasion + 1 Weak + 1 Augment', category: EnemyMoveCategory.TACTIC, intentType: IntentType.DEBUFF, statusEffects: [{status: StatusEffect.EVASION, amount: 1}, {status: StatusEffect.WEAK, amount: 1, target: 'Player'}, {status: StatusEffect.AUGMENT, amount: 1}] },
-      // UPDATED: Fire Ritual is now BASE and ONE USE
       { id: 'ritual', name: 'Fire Ritual', description: 'Buffs on Ally Death (Once)', category: EnemyMoveCategory.BASE, intentType: IntentType.BUFF, mechanic: { triggerCondition: 'OnAllyDeath' }, oneUse: true }, 
-      // FIX: Changed BURNING to BURN
       { id: 'evoke', name: 'Evoke Dragonfire', description: '6 Dmg + Burn', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 6, cooldown: 0, statusEffects: [{status: StatusEffect.BURN, amount: 0, target: 'Player'}], statusScaling: ScalingFactor.AUGMENT }
     ], lastResortCooldown: 0, hasUsedLastResort: false
   },
@@ -593,7 +566,6 @@ const MINIONS_DB = {
     id: 'goblin_hunter', name: 'Goblin Hunter', maxHealth: 35, currentHealth: 35, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.B,
     description: "A cunning trapper.",
     moves: [
-      // Updated: Added mechanic to Mill
       { id: 'trick', name: 'Cheap Trick', description: 'Mill 2 Cards', category: EnemyMoveCategory.BASE, intentType: IntentType.DEBUFF, mechanic: { mill: { count: 2 } } },
       { id: 'trap', name: 'Set Trap', description: 'Shuffle Binding Trap into Discard', category: EnemyMoveCategory.TACTIC, intentType: IntentType.DEBUFF, mechanic: { addCardToDiscard: { cardId: 'binding_trap', count: 1 } } },
       { id: 'booby', name: 'Booby Trap', description: 'Dmg = Discard Size', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 5, damageScaling: ScalingFactor.TARGET_DISCARD_PILE_COUNT } 
@@ -612,7 +584,6 @@ const MINIONS_DB = {
     id: 'brown_bear', name: 'Brown Bear', maxHealth: 80, currentHealth: 80, block: 0, effects: {}, isEnemy: true, grade: EnemyGrade.S,
     description: "A territorial beast driven to a frenzy.",
     moves: [
-      // Updated: Confusion -> Dazed
       { id: 'maul', name: 'Maul', description: '8 Dmg + Dazed', category: EnemyMoveCategory.BASE, intentType: IntentType.ATTACK, damage: 8, statusEffects: [{status: StatusEffect.DAZED, amount: 1, target: 'Player'}] },
       { id: 'fury', name: 'Fury', description: 'Gain Rage', category: EnemyMoveCategory.TACTIC, intentType: IntentType.BUFF, statusEffects: [{status: StatusEffect.RAGE, amount: 1}] },
       { id: 'cornered', name: 'Cornered Menace', description: 'Maul x2', category: EnemyMoveCategory.LAST_RESORT, intentType: IntentType.ATTACK, damage: 16, mechanic: { executeMoves: ['maul', 'maul'] } }
@@ -658,7 +629,6 @@ const MINIONS_DB = {
 
 const getCardCost = (card, player) => {
     let cost = card.cost;
-    // Check for cost modifiers (e.g. from Frogman)
     player.costModifiers.forEach(mod => {
         if (!mod.cardType || mod.cardType === card.type) {
             cost += mod.amount;
@@ -674,6 +644,38 @@ const healUnit = (unit, amount, logs) => {
     logs.push(`${unit.name} healed for ${actualHeal} HP.`);
 };
 
+const ICONS = {
+    [StatusEffect.BLOCK]: <Shield className="w-4 h-4 text-blue-400" />,
+    [StatusEffect.VULNERABLE]: <Heart className="w-4 h-4 text-red-500" />,
+    [StatusEffect.WEAK]: <ArrowRight className="w-4 h-4 text-yellow-400 rotate-90" />,
+    [StatusEffect.STRENGTH]: <Sword className="w-4 h-4 text-red-400" />,
+    [StatusEffect.BLEED]: <Droplets className="w-4 h-4 text-red-600" />,
+    [StatusEffect.POISON]: <Flask className="w-4 h-4 text-green-500" />,
+    [StatusEffect.BURN]: <Flame className="w-4 h-4 text-orange-500" />,
+    [StatusEffect.EVASION]: <Ghost className="w-4 h-4 text-slate-400" />,
+    [StatusEffect.HOLY_FERVOR]: <Cross className="w-4 h-4 text-yellow-300" />,
+    [StatusEffect.STUN]: <Zap className="w-4 h-4 text-yellow-500" />,
+    [StatusEffect.DAZED]: <AlertTriangle className="w-4 h-4 text-yellow-500" />,
+    [StatusEffect.TENACITY]: <Shield className="w-4 h-4 text-blue-300" />,
+    [StatusEffect.PROTECTION]: <Shield className="w-4 h-4 text-white" />,
+    [StatusEffect.RAGE]: <Flame className="w-4 h-4 text-red-600" />,
+    [StatusEffect.BLOODTHIRST]: <Droplets className="w-4 h-4 text-red-800" />,
+    [StatusEffect.ENTANGLED]: <Anchor className="w-4 h-4 text-green-700" />,
+    [StatusEffect.BLIGHTED]: <Skull className="w-4 h-4 text-purple-500" />,
+    [StatusEffect.AUGMENT]: <Plus className="w-4 h-4 text-purple-400" />,
+    [StatusEffect.THORNS]: <Target className="w-4 h-4 text-green-500" />,
+    [StatusEffect.REGEN]: <Heart className="w-4 h-4 text-green-400" />,
+    [StatusEffect.GESTATING]: <Ghost className="w-4 h-4 text-purple-300" />,
+    [StatusEffect.WISDOM]: <BookOpen className="w-4 h-4 text-blue-400" />,
+    [StatusEffect.RECKLESS]: <Sword className="w-4 h-4 text-red-500" />,
+    [StatusEffect.WEAPON_MASTERY]: <Sword className="w-4 h-4 text-yellow-600" />
+};
+
+function Flask(props) {
+    return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2v7.31"/><path d="M14 2v7.31"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/></svg>
+}
+
+
 // --- COMPONENT ---
 
 export default function GameDemo() {
@@ -682,11 +684,9 @@ export default function GameDemo() {
   const [deck, setDeck] = useState([]);
   const [step, setStep] = useState(1);
   
-  // Game Mode State
-  const [gameMode, setGameMode] = useState('CLASSIC'); // 'CLASSIC' or 'BALANCE'
-  const [customEnemies, setCustomEnemies] = useState([]); // For Balance Mode setup
+  const [gameMode, setGameMode] = useState('CLASSIC'); 
+  const [customEnemies, setCustomEnemies] = useState([]); 
 
-  // Combat State
   const [player, setPlayer] = useState(null);
   const [enemies, setEnemies] = useState([]);
   const [turn, setTurn] = useState(1);
@@ -696,26 +696,20 @@ export default function GameDemo() {
   const [activeEnemyAction, setActiveEnemyAction] = useState(null);
   const [actionQueue, setActionQueue] = useState([]);
   const [craftingOptions, setCraftingOptions] = useState(null);
-  // New: Card Selection State
   const [cardSelection, setCardSelection] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
 
-  // New: Preview Card State for Long Press
   const [previewCard, setPreviewCard] = useState(null);
 
-  // Updated draft selection state
   const [draftSelections, setDraftSelections] = useState({skill:null, power:null});
   const [notifications, setNotifications] = useState([]);
   
   const [showEquipment, setShowEquipment] = useState(false);
   
-  // Pile View State
   const [viewingPile, setViewingPile] = useState(null);
 
-  // Fix: Add Interaction Lock to prevent double-clicks/spam
   const interactionLock = useRef(false);
 
-  // --- NOTIFICATION SYSTEM ---
   const addNotification = (message, type) => {
       const id = Date.now() + Math.random();
       setNotifications(prev => [...prev, { id, message, type }]);
@@ -725,24 +719,43 @@ export default function GameDemo() {
       setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  // --- FLOW HANDLERS ---
+  // --- HELPER RENDER ---
+  const renderStatusIcons = (statuses) => {
+      if (!statuses) return null;
+      return (
+          <div className="flex gap-1 flex-wrap">
+              {Object.entries(statuses).map(([key, val]) => {
+                  if (val <= 0) return null;
+                  return (
+                      <div key={key} className="relative group cursor-help">
+                          <div className="bg-slate-800 p-1 rounded border border-slate-600">
+                             {ICONS[key] || <Info className="w-4 h-4"/>}
+                          </div>
+                          <div className="absolute -top-2 -right-2 bg-slate-900 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-slate-600">
+                              {val}
+                          </div>
+                          {/* Tooltip */}
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-2 py-1 bg-black border border-slate-600 rounded text-xs text-white z-50 hidden group-hover:block">
+                              {key}: {KEYWORDS[key]}
+                          </div>
+                      </div>
+                  );
+              })}
+          </div>
+      );
+  };
 
   const startGame = () => {
-    // Reset custom enemies if we are starting classic mode
     if (gameMode === 'CLASSIC') setCustomEnemies([]);
 
     const starterDeck = [];
     const baseAttack = COMMON_CRUSADER_CARDS.find(c => c.id === 'strike');
-    // Selections from Draft
     const selectedSkill = draftSelections.skill;
     const selectedPower = draftSelections.power;
 
     if (baseAttack && selectedSkill && selectedPower) {
-        // Auto add 6 Strikes
         for(let i=0; i<6; i++) starterDeck.push({...baseAttack, id: `atk_${i}`});
-        // Add 3x Selected Skill
         for(let i=0; i<3; i++) starterDeck.push({...selectedSkill, id: `skl_${i}`});
-        // Add 1x Selected Power
         starterDeck.push({...selectedPower, id: `pwr_${0}`});
         
         setDeck(starterDeck);
@@ -759,10 +772,6 @@ export default function GameDemo() {
   const startCustomEncounter = () => {
       const starterDeck = [];
       const baseAttack = COMMON_CRUSADER_CARDS.find(c => c.id === 'strike');
-      // Default selections if not drafted yet (or force draft first? let's assume draft happened)
-      // Actually, let's just use the current draft selections. 
-      // If user skipped draft (not possible by flow), we'd have issues.
-      // But Balance Mode button is on DRAFT screen, so selections exist.
       
       const selectedSkill = draftSelections.skill;
       const selectedPower = draftSelections.power;
@@ -773,12 +782,10 @@ export default function GameDemo() {
           starterDeck.push({...selectedPower, id: `pwr_${0}`});
           
           setDeck(starterDeck);
-          // Pass true for isNewGame
           startEncounter(1, starterDeck);
       }
   };
 
-  // ... (startEncounter same as before) ...
   const startEncounter = (currentStep, overrideDeck) => {
     setStep(currentStep);
     
@@ -791,16 +798,13 @@ export default function GameDemo() {
         return list[Math.floor(Math.random() * list.length)];
     };
     
-    // UPDATED: Initialize usedMoveIds for one-use moves
     const createEnemy = (template, uid) => JSON.parse(JSON.stringify({...template, id: uid, usedMoveIds: []}));
 
     let enemyPool = [];
 
     if (gameMode === 'BALANCE') {
-        // Use Custom Enemies
         enemyPool = customEnemies.map((e, i) => createEnemy(e, `custom_e${i}`));
     } else {
-        // CLASSIC MODE GENERATION
         if (currentStep <= 3) {
             enemyPool = [createEnemy(getRandom(minionsB), 'e1')];
         } else if (currentStep <= 6) {
@@ -826,7 +830,6 @@ export default function GameDemo() {
     let p;
 
     if (overrideDeck) {
-        // NEW GAME INIT
         const shuffledDeck = [...overrideDeck].sort(() => Math.random() - 0.5);
         p = {
             id: 'player', name: 'Crusader', maxHealth: 75, currentHealth: 75,
@@ -838,15 +841,12 @@ export default function GameDemo() {
             costModifiers: []
         };
 
-        // Apply Equipment Init (Only once)
         if (subclass === 'KNIGHT') p.equipment = ['greathelm', 'rusty_mail', 'shortsword', 'kite_shield'];
         else if (subclass === 'ZEALOT') p.equipment = ['greathelm', 'rusty_mail', 'greatsword', 'locked'];
         else p.equipment = ['greathelm', 'rusty_mail', 'morningstar', 'scriptures'];
 
-        // Stat mods
         if (p.equipment.includes('rusty_mail')) { p.maxHealth += 10; p.currentHealth += 10; }
     } else {
-        // CONTINUATION
         if (!player) return;
         p = {
             ...player,
@@ -859,7 +859,6 @@ export default function GameDemo() {
         };
     }
 
-    // START OF COMBAT EFFECTS (Applied fresh each combat)
     if (p.equipment.includes('greathelm')) applyStatus({player: p, enemies: enemyPool}, p, StatusEffect.PROTECTION, 1, []);
     
     if (p.equipment.includes('kite_shield')) {
@@ -871,7 +870,6 @@ export default function GameDemo() {
         p.drawPile.sort(() => Math.random() - 0.5);
     }
 
-    // Ensure HP doesn't exceed max
     if (p.currentHealth > p.maxHealth) p.currentHealth = p.maxHealth;
 
     const initialHand = [];
@@ -891,50 +889,34 @@ export default function GameDemo() {
     setScreen('COMBAT');
   };
 
-  // ... (updateEnemyIntent, playCard same as before) ...
   const updateEnemyIntent = (enemy, turnNum, p) => {
     let move;
     const ratio = enemy.currentHealth / enemy.maxHealth;
     
-    // 1. Priority: Last Resort (Low HP Trigger) overrides pattern
-    // FIX 1: Removed "!enemy.hasUsedLastResort" to allow repeated usage if cooldown permits (e.g. Shaman spam)
     if (ratio < 0.3 && enemy.lastResortCooldown <= 0) {
       move = enemy.moves.find(m => m.category === EnemyMoveCategory.LAST_RESORT);
       if (move) {
         enemy.hasUsedLastResort = true;
-        // FIX 2: Handle cooldown 0 correctly (0 || 99 results in 99, which broke the spam logic)
         enemy.lastResortCooldown = move.cooldown !== undefined ? move.cooldown : 99;
         enemy.nextMove = move;
         return;
       }
     } 
     
-    // 2. Standard Pattern
-    // Turn 1: Attack (Base)
-    // Turn 2: Tactic
-    // Turn 3: Attack
-    // Turn 4: Attack
-    // Turn 5: Tactic
-    // Logic: Tactic occurs on Turn 2, 5, 8... (turnNum % 3 === 2)
-    
     const isTacticTurn = (turnNum % 3 === 2);
 
-    // UPDATED: Helper to find valid moves checking for oneUse
     const getValidMove = (cat) => {
         return enemy.moves.find(m => m.category === cat && (!m.oneUse || !enemy.usedMoveIds?.includes(m.id)));
     };
 
     if (isTacticTurn) {
         move = getValidMove(EnemyMoveCategory.TACTIC);
-        // Fallback to Base if no tactic defined OR if Base is valid and Tactic isn't
         if (!move) move = getValidMove(EnemyMoveCategory.BASE);
     } else {
         move = getValidMove(EnemyMoveCategory.BASE);
-        // Fallback to Tactic if no base defined OR if Base was one-use and is exhausted
         if (!move) move = getValidMove(EnemyMoveCategory.TACTIC);
     }
     
-    // Fallback: Pick random non-ultimate if somehow nothing matched
     if (!move) {
       const opts = enemy.moves.filter(m => m.category !== EnemyMoveCategory.LAST_RESORT);
       move = opts[Math.floor(Math.random() * opts.length)];
@@ -952,7 +934,6 @@ export default function GameDemo() {
     const actualCost = getCardCost(card, player);
     if (player.energy < actualCost) return;
     
-    // BATTLE TRANCE CHECK: Must have ONLY attacks in hand (excluding self)
     if (card.name === 'Battle Trance') {
          const otherCards = player.hand.filter(c => c.id !== card.id);
          const hasNonAttack = otherCards.some(c => c.type !== CardType.ATTACK);
@@ -962,7 +943,6 @@ export default function GameDemo() {
          }
     }
 
-    // ENTANGLED CHECK: Cannot play non-Ranged Attacks
     if (player.effects[StatusEffect.ENTANGLED] && card.type === CardType.ATTACK) {
         const isRanged = card.description.includes("Ranged") || card.ranged;
         if (!isRanged) {
@@ -970,6 +950,8 @@ export default function GameDemo() {
             return;
         }
     }
+
+    setNotifications([]);
 
     interactionLock.current = true;
     setTimeout(() => { interactionLock.current = false; }, 250);
@@ -984,14 +966,11 @@ export default function GameDemo() {
     
     newPlayer.energy -= actualCost;
 
-    // --- POISON LOGIC (PLAYER) ---
-    // Fix: Explicitly handle decrement to ensure state update
     if ((newPlayer.effects[StatusEffect.POISON] || 0) > 0) {
         const poisonDmg = newPlayer.effects[StatusEffect.POISON];
         newPlayer.currentHealth -= poisonDmg;
         addNotification(`Player took ${poisonDmg} Poison damage!`, 'damage');
         
-        // Decrement unless Blighted
         if (!newPlayer.effects[StatusEffect.BLIGHTED]) {
             const currentStacks = newPlayer.effects[StatusEffect.POISON];
             const newStacks = currentStacks - 1;
@@ -1002,14 +981,12 @@ export default function GameDemo() {
             }
         }
 
-        // Check for self-death immediately
         if (newPlayer.currentHealth <= 0) {
              setPlayer(newPlayer);
              setScreen('GAMEOVER');
              return;
         }
     }
-    // -----------------------------
 
     const g = { player: newPlayer, enemies: [...enemies] };
     const logs = [];
@@ -1024,7 +1001,6 @@ export default function GameDemo() {
     }
     if (card.baseBlock) {
         let block = card.baseBlock;
-        // Apply Tenacity
         if (player.effects[StatusEffect.TENACITY]) {
              block += player.effects[StatusEffect.TENACITY];
         }
@@ -1032,10 +1008,9 @@ export default function GameDemo() {
         logs.push(`Gained ${block} Block`);
     }
     
-    // --- HANDLE CARD EFFECT ---
     let selectionRequest = null;
     if (card.effect) {
-        const result = card.effect(g, targetId, logs, card); // Fixed: Pass card as source
+        const result = card.effect(g, targetId, logs, card); 
         if (result) {
             if (result.action === 'CRAFT') {
                 setCraftingOptions(result.options);
@@ -1047,7 +1022,6 @@ export default function GameDemo() {
 
     newPlayer.hand = newPlayer.hand.filter(c => c.id !== card.id);
     
-    // NEW RULE: Traps Exhaust when played
     if (card.volatile || card.type === CardType.TRAP) {
         logs.push(`${card.name} burned (Exhausted)`);
     } else {
@@ -1058,7 +1032,6 @@ export default function GameDemo() {
         applyStatus(g, newPlayer, StatusEffect.HOLY_FERVOR, 1, logs);
     }
 
-    // Check for Enemy Death
     const deadEnemies = g.enemies.filter(e => e.currentHealth <= 0);
     if (deadEnemies.length > 0) {
         g.enemies.forEach(survivor => {
@@ -1073,9 +1046,7 @@ export default function GameDemo() {
     setPlayer(newPlayer);
     setSelectedCard(null);
 
-    // --- HANDLE SELECTION UI TRIGGER ---
     if (selectionRequest) {
-        // Fetch candidates based on source
         let candidates = [];
         if (selectionRequest.source === 'DISCARD') {
             candidates = newPlayer.discardPile.filter(selectionRequest.filter);
@@ -1086,13 +1057,11 @@ export default function GameDemo() {
         if (candidates.length === 0) {
             addNotification("No valid targets for selection.", 'info');
         } else if (candidates.length <= selectionRequest.count) {
-            // Auto-select if not enough cards to choose
             const autoLog = [];
             selectionRequest.logic({ player: newPlayer, enemies }, candidates, autoLog);
             autoLog.forEach(l => addNotification(l, 'info'));
-            setPlayer({...newPlayer}); // Re-save state after logic
+            setPlayer({...newPlayer}); 
         } else {
-            // Open UI
             setCardSelection({
                 ...selectionRequest,
                 candidates: candidates
@@ -1104,7 +1073,6 @@ export default function GameDemo() {
     const updatedEnemies = g.enemies.filter(e => e.currentHealth > 0);
     updatedEnemies.forEach(e => {
         const ratio = e.currentHealth / e.maxHealth;
-        // FIX: Updated logic to match updateEnemyIntent (removed !hasUsedLastResort check and fixed cooldown 0 bug)
         if (ratio <= 0.3 && e.lastResortCooldown <= 0) {
             const lrMove = e.moves.find(m => m.category === EnemyMoveCategory.LAST_RESORT);
             if (lrMove && e.nextMove?.id !== lrMove.id) {
@@ -1118,7 +1086,6 @@ export default function GameDemo() {
     setEnemies(updatedEnemies); 
     
     if (g.enemies.every(e => e.currentHealth <= 0)) {
-      // Don't double deck
       setPlayer(newPlayer);
       if (gameMode === 'BALANCE') {
           setTimeout(() => setScreen('BALANCE_VICTORY'), 1000);
@@ -1132,10 +1099,9 @@ export default function GameDemo() {
       if (!cardSelection || !player) return;
       
       const selectedCards = cardSelection.candidates.filter(c => tempSelection.includes(c.id));
-      const newPlayer = { ...player }; // Clone state
+      const newPlayer = { ...player }; 
       const logs = [];
       
-      // Run the logic defined by the card
       cardSelection.logic({ player: newPlayer, enemies }, selectedCards, logs);
       
       logs.forEach(l => addNotification(l, 'info'));
@@ -1159,6 +1125,8 @@ export default function GameDemo() {
     if (interactionLock.current) return;
     if (!player) return;
 
+    setNotifications([]);
+
     interactionLock.current = true;
     setTimeout(() => { interactionLock.current = false; }, 250);
 
@@ -1178,7 +1146,6 @@ export default function GameDemo() {
         }
     }
 
-    // UPDATED: Volatile Logic for End of Turn Discard
     cardsToDiscard.forEach(card => {
         if (card.volatile) {
             addNotification(`${card.name} (Volatile) Exhausted!`, 'info');
@@ -1189,7 +1156,6 @@ export default function GameDemo() {
 
     newPlayer.hand = retainedCards; 
     
-    // DECAY Entangled at end of turn (so it lasts 1 turn)
     if (newPlayer.effects[StatusEffect.ENTANGLED]) {
         newPlayer.effects[StatusEffect.ENTANGLED]--;
         if (newPlayer.effects[StatusEffect.ENTANGLED] <= 0) delete newPlayer.effects[StatusEffect.ENTANGLED];
@@ -1220,24 +1186,20 @@ export default function GameDemo() {
       const newEnemies = [...currentEnemies];
       const activeEnemy = newEnemies.find(e => e.id === enemyId);
       
-      const currentActionLogs = []; // Collect events here
+      const currentActionLogs = []; 
       
       const g = { player: newPlayer, enemies: newEnemies };
 
-      // UPDATED: Track One-Use Moves
       if (move.oneUse) {
           activeEnemy.usedMoveIds = activeEnemy.usedMoveIds || [];
           activeEnemy.usedMoveIds.push(move.id);
       }
 
-      // --- POISON LOGIC (ENEMY) ---
-      // Fix: Explicitly handle decrement for enemies too
       if ((activeEnemy.effects[StatusEffect.POISON] || 0) > 0) {
           const poisonDmg = activeEnemy.effects[StatusEffect.POISON];
           activeEnemy.currentHealth -= poisonDmg;
           currentActionLogs.push(`${activeEnemy.name} took ${poisonDmg} Poison damage!`);
           
-          // Decrement unless Blighted
           if (!activeEnemy.effects[StatusEffect.BLIGHTED]) {
               const currentStacks = activeEnemy.effects[StatusEffect.POISON];
               const newStacks = currentStacks - 1;
@@ -1248,21 +1210,16 @@ export default function GameDemo() {
               }
           }
       }
-      // ----------------------------
 
-      // --- DAMAGE CALCULATION BLOCK ---
       let finalDamage = move.damage || 0;
       
-      // Re-added AUGMENT to Damage Scaling per user request
       if (move.statusScaling === ScalingFactor.AUGMENT) {
           finalDamage += (activeEnemy.effects[StatusEffect.AUGMENT] || 0);
       }
       
-      // FIX: Removed AUGMENT from Damage Scaling (it should only scale Status for Shaman)
       if (move.damageScaling === ScalingFactor.CURRENT_HP) {
           finalDamage = activeEnemy.currentHealth * 2;
       }
-      // Goblin Hunter: Discard Pile Size
       else if (move.damageScaling === ScalingFactor.TARGET_DISCARD_PILE_COUNT) {
           finalDamage = newPlayer.discardPile.length;
       }
@@ -1271,15 +1228,12 @@ export default function GameDemo() {
           dealDamage(g, activeEnemy, newPlayer, finalDamage, currentActionLogs);
       }
 
-      // --- END DAMAGE BLOCK ---
-
       if (move.statusEffects) {
           move.statusEffects.forEach(eff => {
              if (eff.status === StatusEffect.BLOCK) {
                  activeEnemy.block += eff.amount;
                  currentActionLogs.push(`${activeEnemy.name} gained ${eff.amount} Block`);
              }
-             // Handle Scaling for Burn (Shaman) - FIXED: Changed BURNING to BURN
              else if (eff.status === StatusEffect.BURN && move.statusScaling === ScalingFactor.AUGMENT) {
                  const amount = (activeEnemy.effects[StatusEffect.AUGMENT] || 0);
                  if (amount > 0) {
@@ -1288,7 +1242,6 @@ export default function GameDemo() {
                      currentActionLogs.push(`${activeEnemy.name}'s Dragonfire fizzles (0 Augment)`);
                  }
              }
-             // Fix: Added BLOODTHIRST, RAGE and AUGMENT to self-targeting effects
              else if (eff.status === StatusEffect.EVASION || eff.status === StatusEffect.BLOODTHIRST || eff.status === StatusEffect.RAGE || eff.status === StatusEffect.AUGMENT) {
                  applyStatus(g, activeEnemy, eff.status, eff.amount, currentActionLogs);
              }
@@ -1296,7 +1249,6 @@ export default function GameDemo() {
           });
       }
       
-      // Handle Mechanic: Modify Cost (Tongue Grapple)
       if (move.mechanic && move.mechanic.modifyPlayerCost) {
           const mod = move.mechanic.modifyPlayerCost;
           newPlayer.costModifiers.push({ 
@@ -1307,16 +1259,14 @@ export default function GameDemo() {
           currentActionLogs.push(`Player Attacks cost +${mod.amount} next turn!`);
       }
 
-      // Handle Mechanic: Restore HP (Gobble / Lifevamp)
       if (move.mechanic && move.mechanic.restoreHp) {
           let healAmount = 0;
           if (move.mechanic.restoreHp.type === 'Fixed') healAmount = move.mechanic.restoreHp.amount || 0;
-          else if (move.mechanic.restoreHp.type === 'DamageDealt') healAmount = move.damage || 0; // Simplified access to last dmg
+          else if (move.mechanic.restoreHp.type === 'DamageDealt') healAmount = move.damage || 0;
           
           if (healAmount > 0) healUnit(activeEnemy, healAmount, currentActionLogs);
       }
       
-       // Burn Cards (Gobble)
       if (move.mechanic && move.mechanic.burnCards) {
             const { source, count } = move.mechanic.burnCards;
             if (source === 'DiscardPile') {
@@ -1330,7 +1280,6 @@ export default function GameDemo() {
             }
       }
 
-      // Add Card To Discard (Goblin Trap)
       if (move.mechanic && move.mechanic.addCardToDiscard) {
             const { cardId, count } = move.mechanic.addCardToDiscard;
             const template = TOKEN_CARDS[cardId];
@@ -1344,13 +1293,11 @@ export default function GameDemo() {
             }
       }
 
-      // Handle Mechanic: Mill (Cheap Trick)
       if (move.mechanic && move.mechanic.mill) {
           const { count } = move.mechanic.mill;
           const milledCards = [];
           
           for(let i=0; i<count; i++) {
-              // Reshuffle if empty
               if (newPlayer.drawPile.length === 0) {
                   if (newPlayer.discardPile.length === 0) break;
                   newPlayer.drawPile = [...newPlayer.discardPile].sort(() => Math.random() - 0.5);
@@ -1369,46 +1316,23 @@ export default function GameDemo() {
           }
       }
       
-      // Self Damage (Immolation)
       if (move.mechanic && move.mechanic.dealDamageToSelf && move.mechanic.dealDamageToSelf.type === 'CurrentHP') {
             const selfDmg = activeEnemy.currentHealth;
             activeEnemy.currentHealth = 0;
             currentActionLogs.push(`${activeEnemy.name} sacrifices itself!`);
       }
 
-      // Handle Mechanic: Execute Moves (Dragon Rage)
       if (move.mechanic && move.mechanic.executeMoves) {
-          const movesToExec = move.mechanic.executeMoves; // Array of move IDs
+          const movesToExec = move.mechanic.executeMoves; 
           const extraActions = movesToExec.map(mid => {
               const moveDef = activeEnemy.moves.find(m => m.id === mid);
               return moveDef ? { enemyId: activeEnemy.id, move: moveDef } : null;
           }).filter(Boolean);
 
           if (extraActions.length > 0) {
-              // Prepend these actions to the remaining queue
               const nextQueue = currentQueue.slice(1);
               const newQueue = [...extraActions, ...nextQueue];
               
-              // We modify the queue state so that when the current action is dismissed, the extra actions are processed first
-              setActionQueue(newQueue); 
-              
-              // IMPORTANT: We do NOT processNextAction here because we are currently IN processNextAction.
-              // The UI will show the "Dragon Rage" alert. When the user clicks dismiss, `handleDismissAction` will be called.
-              // However, `handleDismissAction` normally slices the *current state* queue.
-              // Since we updated the state queue here, we need to make sure `handleDismissAction` works correctly.
-              // But wait, `handleDismissAction` uses the state `actionQueue`. 
-              
-              // The standard flow is: processNextAction(queue) -> setActiveEnemyAction -> User Click Dismiss -> handleDismissAction -> processNextAction(nextQueue).
-              
-              // If I modify `setActionQueue` here, the `handleDismissAction` will see the new queue.
-              // But `handleDismissAction` does `actionQueue.slice(1)`.
-              // The current queue head is "Rage". The new queue head is "Glide".
-              // So the new queue looks like: [Glide, Spit, NextEnemy].
-              // BUT `handleDismissAction` assumes the head is the *finished* action (Rage).
-              // So we need to keep "Rage" at the head of the state queue until dismissal.
-              
-              // Correct approach:
-              // setActionQueue([currentQueue[0], ...extraActions, ...currentQueue.slice(1)]);
               setActionQueue([currentQueue[0], ...extraActions, ...currentQueue.slice(1)]);
           }
       }
@@ -1417,7 +1341,7 @@ export default function GameDemo() {
       if (activeEnemy.lastResortCooldown > 0) activeEnemy.lastResortCooldown--;
 
       setPlayer(newPlayer);
-      setEnemies(newEnemies.filter(e => e.currentHealth > 0)); // Filter dead enemies
+      setEnemies(newEnemies.filter(e => e.currentHealth > 0)); 
       
       setActiveEnemyAction({
           enemyName: activeEnemy.name,
@@ -1425,12 +1349,6 @@ export default function GameDemo() {
           description: move.description,
           events: currentActionLogs
       });
-      // Note: We only update the queue for normal recursive calls here if we didn't modify it specially above.
-      // If it's a standard move, the queue state was set at start of turn.
-      // Actually, `processNextAction` is recursive and purely functional based on its argument `currentQueue`.
-      // The state `actionQueue` is primarily for the UI to know what's happening or for resume?
-      // Actually `handleDismissAction` uses `actionQueue` state.
-      // So we must ensure `actionQueue` state matches the current reality.
       
       if (!move.mechanic?.executeMoves) {
           setActionQueue(currentQueue);
@@ -1438,9 +1356,11 @@ export default function GameDemo() {
   };
 
   const handleDismissAction = () => {
+      // Safety check for empty queue
+      if (!activeEnemyAction && actionQueue.length === 0) return;
+
       if (activeEnemyAction && activeEnemyAction.events.length > 0) {
           activeEnemyAction.events.forEach(msg => {
-              // Basic heuristics for type
               let type = 'info';
               if (msg.includes('damage')) type = 'damage';
               else if (msg.includes('Block') || msg.includes('Protection')) type = 'block';
@@ -1451,7 +1371,6 @@ export default function GameDemo() {
           });
       }
       
-      // Proceed to next action
       const nextQueue = actionQueue.slice(1);
       setActionQueue(nextQueue);
       setActiveEnemyAction(null);
@@ -1459,38 +1378,41 @@ export default function GameDemo() {
   };
 
   const startPlayerTurn = (p, es) => {
-    const newPlayer = { ...p };
-    const newEnemies = [...es]; // Shallow copy
+    // IMPORTANT: Deep copy arrays to ensure React sees the state update
+    const newPlayer = { 
+        ...p,
+        hand: [...p.hand],
+        drawPile: [...p.drawPile],
+        discardPile: [...p.discardPile],
+        effects: {...p.effects}
+    };
+    const newEnemies = [...es]; 
 
     newPlayer.block = 0;
     newPlayer.energy = newPlayer.maxEnergy;
     
-    // UPDATED: Draw Logic with Dazed (formerly Confusion)
     let drawCount = 5 + (newPlayer.effects[StatusEffect.WISDOM] || 0);
     
     if (newPlayer.effects[StatusEffect.DAZED]) {
         const dazedAmount = newPlayer.effects[StatusEffect.DAZED];
         drawCount -= dazedAmount;
         addNotification(`Dazed: Drew ${dazedAmount} less cards!`, 'status');
-        delete newPlayer.effects[StatusEffect.DAZED]; // Dazed is consumed on trigger
+        delete newPlayer.effects[StatusEffect.DAZED]; 
     }
     
-    drawCount = Math.max(0, drawCount); // Prevent negative draw
+    drawCount = Math.max(0, drawCount); 
     
     drawCards({player: newPlayer}, drawCount);
 
-    // --- HANDLE PASSIVE TRAP LOGIC (After Draw Phase) ---
     const bindingTraps = newPlayer.hand.filter(c => c.id.includes('binding_trap'));
     if (bindingTraps.length > 0) {
         bindingTraps.forEach(() => {
-             // Find cards that are NOT the trap itself (to prevent trap eating trap loops for now, or just random)
              const discardableIndices = newPlayer.hand.map((c, i) => i).filter(i => !newPlayer.hand[i].id.includes('binding_trap'));
              
              if (discardableIndices.length > 0) {
                  const randIdx = discardableIndices[Math.floor(Math.random() * discardableIndices.length)];
                  const discarded = newPlayer.hand.splice(randIdx, 1)[0];
                  
-                 // UPDATED: Volatile Check for Trap Discard
                  if (discarded.volatile) {
                      addNotification(`Binding Trap: ${discarded.name} (Volatile) Exhausted!`, 'damage');
                  } else {
@@ -1500,25 +1422,18 @@ export default function GameDemo() {
              }
         });
     }
-    // --- END PASSIVE TRAP LOGIC ---
     
-    // RECKLESS NATURE LOGIC
     if (newPlayer.effects[StatusEffect.RECKLESS] && newPlayer.hand.length > 0) {
-        // Find first card
         const cardToPlay = newPlayer.hand[0];
         const baseCost = getCardCost(cardToPlay, newPlayer);
-        // Reduced by 1, min 0
         const reducedCost = Math.max(0, baseCost - 1);
         
-        // Check if affordable
         if (newPlayer.energy >= reducedCost) {
              newPlayer.energy -= reducedCost;
              const logs = [`Reckless Nature played ${cardToPlay.name}`];
              
-             // Simple play logic simulation (only Damage & Status for now to avoid complexity)
              const g = { player: newPlayer, enemies: newEnemies };
              
-             // Handle Effects
              if (cardToPlay.baseDamage) {
                  const target = newEnemies.length > 0 ? newEnemies[Math.floor(Math.random() * newEnemies.length)] : null;
                  if (target) {
@@ -1536,25 +1451,22 @@ export default function GameDemo() {
                  logs.push(`Gained ${b} Block`);
              }
              if (cardToPlay.effect) {
-                 cardToPlay.effect(g, undefined, logs, cardToPlay); // Fixed: Passed cardToPlay as source (4th arg)
+                 cardToPlay.effect(g, undefined, logs, cardToPlay); 
              }
 
-             // Move to discard
-             newPlayer.hand.shift(); // Remove first element
+             newPlayer.hand.shift(); 
              newPlayer.discardPile.push(cardToPlay);
              
              logs.forEach(l => addNotification(l, 'info'));
         }
     }
 
-    // Update Cost Modifiers
     newPlayer.costModifiers = newPlayer.costModifiers
         .map(mod => ({ ...mod, durationTurns: mod.durationTurns - 1 }))
         .filter(mod => mod.durationTurns >= 0); 
     
     [newPlayer, ...newEnemies].forEach(u => {
         if (u.effects[StatusEffect.BURN]) {
-            // Modified Burn Mechanic: Just decay stacks here. Damage is applied on hit in dealDamage.
             u.effects[StatusEffect.BURN]--;
             if(u.effects[StatusEffect.BURN] <= 0) delete u.effects[StatusEffect.BURN];
         }
@@ -1565,7 +1477,6 @@ export default function GameDemo() {
         }
     });
 
-    // Check for victory immediately after start-of-turn effects (Reckless, Burn, Bleed)
     if (newEnemies.every(e => e.currentHealth <= 0)) {
         setPlayer(newPlayer);
         setEnemies(newEnemies);
@@ -1577,7 +1488,6 @@ export default function GameDemo() {
         return;
     }
 
-    // Filter out dead enemies so they don't act or display with negative HP
     const aliveEnemies = newEnemies.filter(e => e.currentHealth > 0);
 
     aliveEnemies.forEach(e => updateEnemyIntent(e, turn + 1, newPlayer));
@@ -1694,7 +1604,6 @@ export default function GameDemo() {
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-8">
         <h2 className="text-3xl font-serif mb-8 text-center">Equipment Loadout</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 w-full max-w-3xl place-items-center">
-          {/* Head */}
           <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-full max-w-sm border border-slate-700">
             <div className="flex-shrink-0"><User className="mt-1 text-yellow-500" /></div>
             <div>
@@ -1703,7 +1612,6 @@ export default function GameDemo() {
                 <div className="text-xs text-slate-300 mt-1"><KeywordText text={loadout.head.desc} /></div>
             </div>
           </div>
-          {/* Body */}
           <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-full max-w-sm border border-slate-700">
             <div className="flex-shrink-0"><ShirtIcon className="mt-1 text-yellow-500" /></div>
             <div>
@@ -1712,7 +1620,6 @@ export default function GameDemo() {
                 <div className="text-xs text-slate-300 mt-1"><KeywordText text={loadout.body.desc} /></div>
             </div>
           </div>
-          {/* Main Hand */}
           <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-full max-w-sm border border-slate-700">
             <div className="flex-shrink-0"><Sword className="mt-1 text-yellow-500" /></div>
             <div>
@@ -1721,7 +1628,6 @@ export default function GameDemo() {
                 <div className="text-xs text-slate-300 mt-1"><KeywordText text={loadout.main.desc} /></div>
             </div>
           </div>
-          {/* Off Hand */}
           <div className="flex items-start gap-4 bg-slate-800 p-4 rounded w-full max-w-sm border border-slate-700">
             <div className="flex-shrink-0"><Shield className="mt-1 text-yellow-500" /></div>
             <div>
@@ -1737,7 +1643,6 @@ export default function GameDemo() {
   }
 
   if (screen === 'DRAFT') {
-    // Define Options
     const draftSkills = [
         COMMON_CRUSADER_CARDS.find(c => c.id === 'warcry'),
         COMMON_CRUSADER_CARDS.find(c => c.id === 'draw_steel'),
@@ -1754,8 +1659,6 @@ export default function GameDemo() {
 
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-8 relative">
-        
-        {/* Classic Mode Button */}
         <button 
           disabled={!isReady}
           onClick={() => { setGameMode('CLASSIC'); startGame(); }} 
@@ -1764,7 +1667,6 @@ export default function GameDemo() {
           Classic Mode <ArrowRight size={20} />
         </button>
 
-        {/* Balance Mode Button */}
         <button 
           disabled={!isReady}
           onClick={handleBalanceModeSetup}
@@ -1778,7 +1680,6 @@ export default function GameDemo() {
         
         <div className="flex flex-col gap-12 w-full max-w-5xl justify-center items-center pb-24 md:pb-0">
           
-          {/* Skills Row */}
           <div className="w-full">
             <h3 className="text-center font-bold text-blue-400 uppercase tracking-widest text-sm mb-6">Select Innate Skill (x3)</h3>
             <div className="flex justify-center gap-6">
@@ -1790,7 +1691,6 @@ export default function GameDemo() {
             </div>
           </div>
 
-          {/* Powers Row */}
           <div className="w-full">
             <h3 className="text-center font-bold text-yellow-400 uppercase tracking-widest text-sm mb-6">Select Innate Power (x1)</h3>
              <div className="flex justify-center gap-6">
@@ -1804,7 +1704,6 @@ export default function GameDemo() {
 
         </div>
         
-        {/* Preview Overlay Triggered here as well */}
         {previewCard && <CardPreviewOverlay card={previewCard} onClose={() => setPreviewCard(null)} />}
       </div>
     );
@@ -1818,10 +1717,8 @@ export default function GameDemo() {
               <h2 className="text-3xl font-serif text-purple-400 mb-4">Balance Mode Setup</h2>
               <p className="text-slate-400 mb-8">Create a custom encounter. (Max 5 minions)</p>
 
-              {/* Selection Area */}
               <div className="flex flex-col md:flex-row gap-8 w-full max-w-6xl flex-1 overflow-hidden">
                   
-                  {/* Available Minions Pool */}
                   <div className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 overflow-y-auto h-[60vh]">
                       <h3 className="font-bold text-lg mb-4 sticky top-0 bg-slate-800 py-2 border-b border-slate-600">Available Minions</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -1843,7 +1740,6 @@ export default function GameDemo() {
                       </div>
                   </div>
 
-                  {/* Selected Team */}
                   <div className="w-full md:w-1/3 bg-purple-900/20 p-4 rounded-xl border border-purple-500 flex flex-col">
                       <h3 className="font-bold text-lg mb-4 text-purple-300">Encounter Team ({customEnemies.length}/5)</h3>
                       <div className="flex-1 space-y-2 overflow-y-auto mb-4">
@@ -1888,20 +1784,10 @@ export default function GameDemo() {
 
   if (screen === 'COMBAT') {
     return (
-      <div className="flex flex-col h-screen bg-slate-950 text-white overflow-hidden relative">
-        
-        {/* NOTIFICATION CONTAINER */}
-        <div className="absolute top-20 right-4 flex flex-col gap-2 z-50 pointer-events-none items-end">
-            {/* Clear Button */}
-            {notifications.length > 0 && (
-                <button 
-                    onClick={() => setNotifications([])} 
-                    className="pointer-events-auto mb-1 px-3 py-1 bg-slate-800 hover:bg-red-900 border border-slate-600 text-slate-300 hover:text-white rounded text-xs font-bold flex items-center gap-1 shadow-lg transition-colors"
-                >
-                    <Trash2 size={12} /> Clear All
-                </button>
-            )}
-            
+    <div className="w-full h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden select-none font-sans">
+      
+      {/* NOTIFICATIONS */}
+      <div className="absolute top-24 right-4 flex flex-col gap-2 z-[60] pointer-events-none items-end">
             {notifications.map(n => (
                 <div key={n.id} className={`pointer-events-auto flex items-center justify-between w-56 p-2 rounded shadow-lg animate-in slide-in-from-right fade-in duration-200 
                     ${n.type === 'damage' ? 'bg-red-900 border border-red-600' : 
@@ -1912,10 +1798,10 @@ export default function GameDemo() {
                     <button onClick={() => dismissNotification(n.id)} className="ml-2 hover:text-red-400"><X size={14}/></button>
                 </div>
             ))}
-        </div>
+      </div>
 
-        {/* PILE VIEW MODAL */}
-        {viewingPile !== null && (
+      {/* MODALS */}
+      {viewingPile !== null && (
             <div className="absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center animate-fade-in p-8">
                 <div className="w-full max-w-5xl h-full flex flex-col">
                     <div className="flex justify-between items-center mb-6">
@@ -1929,10 +1815,8 @@ export default function GameDemo() {
                     </div>
                 </div>
             </div>
-        )}
-
-        {/* EQUIPMENT MODAL */}
-        {showEquipment && player && (
+      )}
+      {showEquipment && player && (
             <div className="absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center animate-fade-in p-4">
                 <div className="bg-slate-800 p-6 md:p-8 rounded-xl border-2 border-slate-600 max-w-2xl w-full relative">
                     <button onClick={() => setShowEquipment(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X /></button>
@@ -1943,42 +1827,19 @@ export default function GameDemo() {
                             if (!item) return null;
                             return (
                                 <div key={eqId} className="flex items-start gap-3 bg-slate-900 p-3 md:p-4 rounded border border-slate-700">
-                                    {item.slot === EquipmentSlot.HEAD ? <User className="text-blue-400" /> : 
-                                     item.slot === EquipmentSlot.BODY ? <ShirtIcon className="text-blue-400" /> :
-                                     item.slot === EquipmentSlot.RIGHT_HAND ? <Sword className="text-red-400" /> : <Shield className="text-green-400" />}
-                                    <div>
-                                        <div className="font-bold text-sm md:text-base">{item.name}</div>
-                                        <div className="text-[10px] md:text-xs text-slate-400 mt-1"><KeywordText text={item.desc} /></div>
-                                    </div>
+                                    <div className="font-bold text-sm md:text-base">{item.name}</div>
                                 </div>
                             )
                         })}
                     </div>
                 </div>
             </div>
-        )}
-
-        {/* CRAFTING OVERLAY */}
-        {craftingOptions && (
-            <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center animate-fade-in p-4">
-                <h2 className="text-2xl md:text-4xl font-serif text-yellow-400 mb-8 text-center">Craft A Blessing</h2>
-                <div className="flex flex-wrap justify-center gap-4 md:gap-8">
-                    {craftingOptions.map(card => (
-                        <div key={card.id} onClick={() => handleCraftSelection(card)} className="cursor-pointer hover:scale-110 transition-transform scale-90 md:scale-100">
-                            <CardView card={card} onLongPress={setPreviewCard} />
-                        </div>
-                    ))}
-                </div>
-            </div>
-        )}
-
-        {/* CARD SELECTION OVERLAY */}
-        {cardSelection && (
+      )}
+      {/* SELECTION OVERLAYS */}
+      {cardSelection && (
             <div className="absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center animate-fade-in p-8">
                 <div className="w-full max-w-5xl flex flex-col items-center">
                     <h2 className="text-2xl md:text-4xl font-serif text-yellow-400 mb-4 text-center">{cardSelection.title}</h2>
-                    <p className="text-slate-400 mb-8 text-center">Select {cardSelection.count} {cardSelection.count === 1 ? 'card' : 'cards'}. ({tempSelection.length}/{cardSelection.count})</p>
-                    
                     <div className="flex flex-wrap justify-center gap-4 mb-8">
                         {cardSelection.candidates.map(card => {
                             const isSelected = tempSelection.includes(card.id);
@@ -1990,13 +1851,12 @@ export default function GameDemo() {
                                         setTempSelection(prev => [...prev, card.id]);
                                     }
                                 }} className={`cursor-pointer transition-transform hover:scale-105 scale-90 md:scale-100 relative`}>
-                                    <CardView card={card} selected={isSelected} onLongPress={setPreviewCard} />
+                                    <CardView card={card} selected={isSelected} />
                                     {isSelected && <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/30 rounded-xl"><Check className="text-white w-12 h-12 drop-shadow-lg" /></div>}
                                 </div>
                             );
                         })}
                     </div>
-
                     <button 
                         disabled={tempSelection.length !== cardSelection.count}
                         onClick={handleSelectionComplete}
@@ -2006,9 +1866,9 @@ export default function GameDemo() {
                     </button>
                 </div>
             </div>
-        )}
-
-        {/* ENEMY ACTION OVERLAY */}
+      )}
+      
+      {/* ENEMY ACTION OVERLAY */}
         {activeEnemyAction && (
             <div className="absolute inset-0 bg-black/60 z-50 flex flex-col items-center justify-center animate-in fade-in duration-300 p-4">
                 <div className="bg-red-950 border-4 border-red-600 rounded-xl p-6 md:p-8 max-w-lg w-full shadow-2xl text-center relative">
@@ -2029,154 +1889,204 @@ export default function GameDemo() {
             </div>
         )}
 
-        {/* PREVIEW CARD OVERLAY */}
-        {previewCard && <CardPreviewOverlay card={previewCard} onClose={() => setPreviewCard(null)} />}
-
-        {/* Header */}
-        <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-2">
-          <div className="font-bold text-sm md:text-xl text-center md:text-left w-full md:w-auto">
-              {gameMode === 'BALANCE' ? 'Balance Test' : `The Forest - Step ${step}/10`}
-          </div>
-          <div className="flex gap-4 text-xs md:text-sm text-slate-400 mt-1 md:mt-0">
-             <div className="font-mono">TURN {turn}</div>
-          </div>
-        </div>
-
-        {/* Battlefield */}
-        <div className="flex-1 flex items-center justify-center p-4 relative overflow-hidden">
-          {/* Enemies */}
-          <div className="flex flex-wrap justify-center gap-4 w-full max-w-4xl">
-            {enemies.map((enemy, idx) => (
-              <div key={idx} onClick={() => selectedCard && selectedCard.target === CardTarget.SINGLE && playCard(selectedCard, enemy.id)} className={`relative transition-all ${selectedCard && selectedCard.target === CardTarget.SINGLE ? 'cursor-crosshair hover:scale-105 ring-2 ring-red-500 rounded-lg' : ''}`}>
-                <div className="w-24 h-36 md:w-32 md:h-48 bg-red-900 rounded-lg border-2 md:border-4 border-red-700 flex flex-col items-center justify-center shadow-[0_0_20px_rgba(185,28,28,0.2)] relative group">
-                  <div className="absolute top-1 right-1 md:top-2 md:right-2 cursor-help z-20"><Info size={14} className="text-red-300 hover:text-white" />
-                    <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-black border border-red-500 rounded text-xs text-white hidden group-hover:block z-50 shadow-xl">
-                        {enemy.description}
-                    </div>
-                  </div>
-                  <Skull className="w-8 h-8 md:w-12 md:h-12" />
-                  <div className="font-bold mt-1 md:mt-2 text-center leading-tight text-[10px] md:text-base px-1">{enemy.name}</div>
-                  <div className="text-[8px] md:text-xs text-red-300">{enemy.grade}-Tier</div>
-                  {/* HP Bar */}
-                  <div className="w-full px-2 mt-1 md:mt-2">
-                    <div className="h-1.5 md:h-2 bg-slate-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-500 transition-all" style={{width: `${(enemy.currentHealth / enemy.maxHealth) * 100}%`}}></div>
-                    </div>
-                    <div className="text-[8px] md:text-xs text-center mt-0.5 md:mt-1">{enemy.currentHealth}/{enemy.maxHealth}</div>
-                    {/* Block */}
-                    {enemy.block > 0 && <div className="text-center text-[8px] md:text-[10px] text-blue-300 font-bold">Block: {enemy.block}</div>}
-                  </div>
-                </div>
-                {/* Statuses */}
-                <div className="flex gap-0.5 md:gap-1 mt-1 justify-center flex-wrap max-w-[96px] md:max-w-[150px]">
-                    {Object.entries(enemy.effects).map(([k, v]) => (
-                        <div key={k} className="bg-slate-800 px-1 rounded text-[8px] md:text-[10px] border border-slate-600 cursor-help" title={KEYWORDS[k] || k}>{k.substring(0,2)}:{v}</div>
-                    ))}
-                </div>
+      {/* HEADER */}
+      <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 shadow-lg z-10">
+          <div className="flex items-center gap-4">
+              <div className="flex flex-col">
+                  <span className="text-xs text-slate-400 uppercase tracking-widest font-bold">Player</span>
+                  <span className="font-bold text-lg flex items-center gap-2">
+                      <User className="w-4 h-4" /> {player.name}
+                  </span>
               </div>
-            ))}
+              <div className="h-8 w-px bg-slate-700 mx-2"></div>
+              <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2 text-red-400" title="Health">
+                      <Heart className="w-5 h-5 fill-current" />
+                      <span className="font-mono text-xl font-bold">{player.currentHealth}/{player.maxHealth}</span>
+                  </div>
+                  {/* Block removed from Header to simplify HUD */}
+                  <div className="flex items-center gap-2 text-cyan-400" title="Mana">
+                      <div className="relative">
+                        <Zap className="w-6 h-6 fill-current animate-pulse" />
+                      </div>
+                      <span className="font-mono text-xl font-bold">{player.energy}/{player.maxEnergy}</span>
+                  </div>
+              </div>
           </div>
-        </div>
-
-        {/* Player HUD & Hand Area */}
-        <div className="bg-slate-900 border-t border-slate-800 relative flex flex-col items-center">
-          
-          {/* HUD Bar */}
-          <div className="w-full bg-slate-800 border-b border-slate-700 px-2 md:px-8 py-2 flex items-center justify-between h-14 md:h-auto">
-             {/* Player Stats */}
-             <div className="flex items-center gap-2 md:gap-6 flex-1">
-                {/* Health */}
-                <div className="flex flex-col items-center md:items-start">
-                    <div className="hidden md:block text-sm text-slate-400">Health</div>
-                    <div className="text-sm md:text-xl font-bold text-red-400 flex items-center gap-1 md:gap-2">
-                        <Heart className="fill-red-500 w-4 h-4 md:w-5 md:h-5"/> {player?.currentHealth}
-                    </div>
-                </div>
-
-                {/* Energy */}
-                <div className="flex flex-col items-center md:items-start">
-                    <div className="hidden md:block text-sm text-slate-400">Energy</div>
-                    <div className="text-sm md:text-xl font-bold text-yellow-400 flex items-center gap-1 md:gap-2">
-                        <Zap className="fill-yellow-500 w-4 h-4 md:w-5 md:h-5"/> {player?.energy}/{player?.maxEnergy}
-                    </div>
-                </div>
-
-                {/* Block */}
-                <div className="flex flex-col items-center md:items-start">
-                    <div className="hidden md:block text-sm text-slate-400">Block</div>
-                    <div className="text-sm md:text-xl font-bold text-blue-400 flex items-center gap-1 md:gap-2">
-                        <Shield className="fill-blue-500 w-4 h-4 md:w-5 md:h-5"/> {player?.block}
-                    </div>
-                </div>
-                
-                {/* Status Effects - Simplified for Mobile */}
-                <div className="flex gap-1 flex-wrap max-w-[120px] md:max-w-md ml-2">
-                    {Object.entries(player.effects).map(([k, v]) => (
-                        <div key={k} className="bg-slate-950 px-1.5 py-0.5 rounded text-[10px] md:text-xs border border-slate-600 text-yellow-500 font-mono cursor-help relative group">
-                            {k.substring(0,2)}:{v}
-                            <span className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-black border border-slate-500 rounded hidden group-hover:block z-50 text-white normal-case font-sans">
-                                {KEYWORDS[k] || k}
-                            </span>
-                        </div>
-                    ))}
-                </div>
+          <div className="flex items-center gap-4">
+             <div className="text-right hidden md:block">
+                 <div className="text-xs text-slate-500 uppercase">Turn</div>
+                 <div className="font-mono text-xl font-bold">{turn}</div>
              </div>
+             <div className="h-8 w-px bg-slate-700 mx-2"></div>
              
-             {/* Deck Info & End Turn */}
-             <div className="flex items-center gap-3 md:gap-6 text-slate-400 text-xs md:text-sm font-mono">
-                <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={() => setShowEquipment(true)}>
-                    <Package size={16} className="md:w-5 md:h-5"/>
-                    <span className="hidden md:inline">Equip</span>
-                </div>
-                <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={openDrawPile}>
-                    <Layers size={16} className="md:w-5 md:h-5"/>
-                    <span className="hidden md:inline">Draw: {player?.drawPile.length}</span>
-                    <span className="md:hidden">{player?.drawPile.length}</span>
-                </div>
-                <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={openDiscardPile}>
-                    <RefreshCw size={16} className="md:w-5 md:h-5"/>
-                    <span className="hidden md:inline">Discard: {player?.discardPile.length}</span>
-                    <span className="md:hidden">{player?.discardPile.length}</span>
-                </div>
+             <div className="flex flex-col items-center cursor-pointer hover:text-white transition-colors" onClick={() => setShowEquipment(true)}>
+                <Package size={16} className="md:w-5 md:h-5"/>
+                <span className="text-[10px] uppercase">Equip</span>
+             </div>
 
-                {/* End Turn Button (Moved Here) */}
-                <button 
-                    onClick={startEnemyPhase} 
-                    className="ml-2 bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg shadow-lg border-2 border-red-400 hover:scale-105 transition-transform flex items-center justify-center"
-                    title="End Turn"
-                >
-                    <ArrowRight size={20} />
-                </button>
+             <div className="flex flex-col items-end cursor-pointer hover:text-white" onClick={openDrawPile}>
+                 <div className="text-xs text-slate-500 uppercase">Deck</div>
+                 <div className="flex items-center gap-1 text-slate-300">
+                     <Layers className="w-4 h-4" /> {player.drawPile.length}
+                 </div>
+             </div>
+             <div className="flex flex-col items-end cursor-pointer hover:text-white" onClick={openDiscardPile}>
+                 <div className="text-xs text-slate-500 uppercase">Discard</div>
+                 <div className="flex items-center gap-1 text-slate-300">
+                     <Trash2 className="w-4 h-4" /> {player.discardPile.length}
+                 </div>
              </div>
           </div>
+      </div>
 
-          {/* Floating Energy Orb Removed (already handled) */}
-          {/* Old Floating End Turn Button Removed */}
+      {/* BATTLEFIELD */}
+      <div className="flex-1 relative flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950 p-4">
+          
+          {/* Background Decor */}
+          <div className="absolute inset-0 overflow-hidden opacity-10 pointer-events-none">
+             <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-red-600 blur-3xl rounded-full mix-blend-screen"></div>
+             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600 blur-3xl rounded-full mix-blend-screen"></div>
+          </div>
 
-          {/* Hand Cards Container */}
-          <div className="w-full h-48 md:h-64 overflow-x-auto overflow-y-hidden pb-4 pt-8 px-4">
-            <div className="flex justify-start md:justify-center items-end gap-2 md:gap-4 min-w-max mx-auto">
-                {player?.hand.map((card, idx) => (
-                <div key={idx} className={`flex-shrink-0 transform transition-all duration-200 hover:-translate-y-8 md:hover:-translate-y-12 hover:scale-105 z-0 hover:z-10 ${selectedCard === card ? '-translate-y-8 md:-translate-y-12 ring-4 ring-yellow-400 rounded-xl z-10' : ''} ${player?.costModifiers.some(m => !m.cardType || m.cardType === card.type) ? 'ring-2 ring-red-500' : ''}`}>
+          {/* Player Status Display (Floating) */}
+          <div className="absolute bottom-4 left-4 flex gap-2 items-end z-30">
+              {/* Dynamic Block Icon - Only shows when Block > 0 */}
+              {player.block > 0 && (
+                  <div className="relative group cursor-help animate-in zoom-in duration-200">
+                      <div className="bg-slate-800 p-1.5 rounded-lg border border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                         <Shield className="w-5 h-5 text-blue-400 fill-blue-400/20"/>
+                      </div>
+                      <div className="absolute -top-2 -right-2 bg-blue-900 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-blue-500 shadow-sm">
+                          {player.block}
+                      </div>
+                       <div className="absolute bottom-full left-0 mb-2 w-max px-2 py-1 bg-black border border-blue-500 rounded text-xs text-blue-100 hidden group-hover:block">
+                          Block {player.block}
+                      </div>
+                  </div>
+              )}
+              {renderStatusIcons(player.effects)}
+          </div>
+
+          {/* Enemies */}
+          <div className="flex gap-8 z-10">
+              {enemies.map(enemy => (
+                  <div key={enemy.id} 
+                       onClick={() => selectedCard && selectedCard.target === CardTarget.SINGLE && playCard(selectedCard, enemy.id)}
+                       className={`relative w-48 flex flex-col items-center gap-2 group transition-all duration-300 hover:scale-105 ${selectedCard && selectedCard.target === CardTarget.SINGLE ? 'cursor-crosshair ring-2 ring-red-500 rounded-lg p-1' : ''}`}>
+                      
+                      {/* Intent */}
+                      <div className="absolute -top-12 animate-bounce">
+                          <div className="bg-slate-800 text-white px-3 py-1 rounded-full border border-slate-600 shadow-xl flex items-center gap-2 text-sm font-bold">
+                              {enemy.nextMove?.intentType === IntentType.ATTACK && <Sword className="w-4 h-4 text-red-400"/>}
+                              {enemy.nextMove?.intentType === IntentType.BUFF && <ArrowRight className="w-4 h-4 text-green-400 rotate-[-45deg]"/>}
+                              {enemy.nextMove?.intentType === IntentType.DEBUFF && <Skull className="w-4 h-4 text-purple-400"/>}
+                              {enemy.nextMove?.intentType === IntentType.DEFEND && <Shield className="w-4 h-4 text-blue-400"/>}
+                              {enemy.nextMove?.damage > 0 && <span>{enemy.nextMove.damage}</span>}
+                          </div>
+                      </div>
+
+                      {/* Sprite Placeholder */}
+                      <div className="w-32 h-32 bg-slate-800 rounded-lg border-2 border-slate-700 shadow-2xl flex items-center justify-center relative overflow-hidden group-hover:border-slate-500 transition-colors">
+                          <Ghost className="w-16 h-16 text-slate-600" />
+                          <div className="absolute bottom-0 w-full h-1 bg-slate-700">
+                              <div 
+                                className="h-full bg-red-600 transition-all duration-500" 
+                                style={{ width: `${(enemy.currentHealth / enemy.maxHealth) * 100}%` }}
+                              ></div>
+                          </div>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="text-center w-full">
+                          <div className="font-bold text-lg text-slate-200">{enemy.name}</div>
+                          <div className="flex justify-center gap-3 mt-1">
+                                <div className="flex items-center gap-1 text-red-400 font-bold bg-slate-900/50 px-2 py-0.5 rounded">
+                                    <Heart className="w-3 h-3 fill-current" /> {enemy.currentHealth}
+                                </div>
+                                {enemy.block > 0 && (
+                                    <div className="flex items-center gap-1 text-blue-400 font-bold bg-slate-900/50 px-2 py-0.5 rounded">
+                                            <Shield className="w-3 h-3 fill-current" /> {enemy.block}
+                                    </div>
+                                )}
+                          </div>
+                          {/* Enemy Statuses */}
+                          <div className="flex justify-center mt-2 gap-1">
+                              {renderStatusIcons(enemy.effects)}
+                          </div>
+                      </div>
+                  </div>
+              ))}
+          </div>
+
+          {/* Log / Notifications (Simple) */}
+          <div className="absolute top-4 right-4 w-64 h-32 overflow-hidden pointer-events-none flex flex-col justify-end gap-1 opacity-70">
+              {combatLog.slice(-3).map((l, i) => (
+                  <div key={i} className="text-xs text-right bg-slate-900/80 p-1 rounded text-slate-300 animate-fade-in">
+                      {l}
+                  </div>
+              ))}
+          </div>
+
+      </div>
+
+      {/* HAND AREA */}
+      <div className="h-56 bg-slate-900 border-t border-slate-800 relative flex items-end justify-center pb-4 gap-2 px-4 z-20">
+          
+          {/* End Turn Button */}
+          <div className="absolute top-0 right-4 -translate-y-1/2">
+              <button 
+                onClick={startEnemyPhase}
+                className={`
+                    px-6 py-3 rounded-lg font-bold shadow-xl border-b-4 transition-all active:border-b-0 active:translate-y-1
+                    bg-amber-500 border-amber-700 hover:bg-amber-400 text-slate-900
+                `}
+              >
+                  End Turn
+              </button>
+          </div>
+
+          {/* Cards */}
+          <div className="flex items-end justify-center -space-x-4 hover:space-x-1 transition-all duration-300 perspective-1000 min-w-max mx-auto px-12">
+            {player.hand.map((card, index) => {
+               const canPlay = player.energy >= getCardCost(card, player);
+               const isSelected = selectedCard === card;
+               
+               // Card Rotation Logic for fan effect
+               const total = player.hand.length;
+               const rotate = (index - (total - 1) / 2) * 5;
+               const translateY = Math.abs(index - (total - 1) / 2) * 10;
+
+               return (
+                <div 
+                    key={index}
+                    onClick={() => card.target === CardTarget.SINGLE ? setSelectedCard(selectedCard === card ? null : card) : playCard(card)}
+                    style={{ 
+                        transform: isSelected ? 'translateY(-40px) scale(1.1) rotate(0deg)' : `rotate(${rotate}deg) translateY(${translateY}px)`,
+                        zIndex: isSelected ? 50 : index,
+                        transformOrigin: 'bottom center'
+                    }}
+                    className={`
+                        transition-all duration-200 cursor-pointer
+                        hover:-translate-y-12 hover:rotate-0 hover:z-50 hover:scale-110
+                    `}
+                >
                     <CardView 
                         card={card} 
-                        playable={player.energy >= getCardCost(card, player)} 
+                        playable={canPlay} 
                         costDisplay={getCardCost(card, player)}
-                        onClick={() => card.target === CardTarget.SINGLE ? setSelectedCard(selectedCard === card ? null : card) : playCard(card)}
-                        onLongPress={setPreviewCard}
+                        selected={isSelected}
                     />
                 </div>
-                ))}
-            </div>
+               );
+            })}
           </div>
-        </div>
       </div>
+    </div>
     );
   }
 
   if (screen === 'REWARD') {
-    // Generate Rewards
-    // Fix: Filter out "Strike" from the reward pool so players get new cards
     const rewardPool = COMMON_CRUSADER_CARDS.filter(c => c.id !== 'strike');
     
     const common = rewardPool[Math.floor(Math.random() * rewardPool.length)];
@@ -2186,11 +2096,9 @@ export default function GameDemo() {
     const rewards = [common, common2, sub];
 
     const pickReward = (card) => {
-        // Fixed: Generate unique ID for the new card
         const newCard = { ...card, id: `${card.id}_${Date.now()}` };
         const newDeck = [...deck, newCard];
         setDeck(newDeck);
-        // Heal using healUnit (removed fixed heal)
         startEncounter(step + 1);
     };
 
@@ -2198,7 +2106,6 @@ export default function GameDemo() {
       <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
         <h2 className="text-4xl font-bold text-yellow-500 mb-4">Victory!</h2>
         
-        {/* Added CardPreviewOverlay here */}
         {previewCard && <CardPreviewOverlay card={previewCard} onClose={() => setPreviewCard(null)} />}
 
         <p className="mb-8 text-slate-400">Choose a card to add to your deck</p>
@@ -2247,14 +2154,11 @@ export default function GameDemo() {
 // --- UI COMPONENTS ---
 
 const KeywordText = ({ text }) => {
-  // Helper to split text and wrap keywords
-  // UPDATED: Replaced Confusion with Dazed in regex
   const parts = text.split(/(\b(?:Block|Vulnerable|Weak|Strength|Bleed|Poison|Burn|Evasion|Holy Fervor|Stun|Dazed|Tenacity|Protection|Innate|Volatile|Retain|Ranged|Exhaust|Mill|Augment|Dispel|Thorns|Rage|Bloodthirst|Entangled|Blighted|Lifevamp|Regen|Gestating|Debuff|Reckless|Weapon Mastery)\b)/gi);
   
   return (
     <span>
       {parts.map((part, i) => {
-        // Normalize key lookup
         const key = Object.keys(KEYWORDS).find(k => k.toLowerCase() === part.toLowerCase());
         if (key) {
           return (
@@ -2314,11 +2218,10 @@ const CardPreviewOverlay = ({ card, onClose }) => {
 };
 
 const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLongPress }) => {
-  const border = card.rarity === CardRarity.COMMON ? 'border-slate-400' : card.rarity === CardRarity.TOKEN ? 'border-yellow-200' : 'border-purple-500';
+  const border = card.rarity === CardRarity.COMMON ? 'border-slate-600' : card.rarity === CardRarity.TOKEN ? 'border-yellow-200' : 'border-purple-500/50';
   const displayCost = costDisplay !== undefined ? costDisplay : card.cost;
-  const costColor = displayCost > card.cost ? 'text-red-500' : displayCost < card.cost ? 'text-green-400' : 'text-white';
+  const costColor = displayCost > card.cost ? 'bg-red-600' : displayCost < card.cost ? 'bg-green-600' : 'bg-blue-600';
 
-  // Long Press Logic
   const timerRef = useRef(null);
   const isLongPress = useRef(false);
 
@@ -2327,14 +2230,13 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
     timerRef.current = setTimeout(() => {
       isLongPress.current = true;
       if (onLongPress) onLongPress(card);
-    }, 500); // 500ms threshold
+    }, 500); 
   };
 
   const handleEnd = (e) => {
     if (timerRef.current) {
         clearTimeout(timerRef.current);
     }
-    // Prevent phantom clicks on mobile if long press occurred
     if (isLongPress.current) {
        if (e.cancelable) e.preventDefault();
     }
@@ -2356,25 +2258,39 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
       onMouseUp={handleEnd}
       onMouseLeave={handleEnd}
       onClick={handleClick}
-      onContextMenu={(e) => e.preventDefault()} // Prevent context menu on long press
-      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }} // FIXED: Explicitly prevent iOS callouts and selection
-      className={`w-24 h-36 md:w-32 md:h-48 bg-slate-800 rounded-xl border-2 ${border} p-2 md:p-3 flex flex-col relative shadow-xl ${!playable ? 'opacity-50 grayscale' : ''} ${selected ? 'ring-4 ring-yellow-400' : ''} select-none`}
+      onContextMenu={(e) => e.preventDefault()}
+      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }} 
+      className={`
+        w-32 md:w-40 aspect-[2/3] rounded-xl border-2 shadow-2xl flex flex-col p-2 select-none relative
+        bg-gradient-to-br from-slate-800 to-slate-900
+        ${border}
+        ${!playable ? 'opacity-60 grayscale-[0.5]' : ''}
+        ${selected ? 'ring-4 ring-yellow-400 border-yellow-400' : ''}
+        ${playable && !selected ? 'hover:border-yellow-400 hover:shadow-yellow-400/20' : ''}
+      `}
     >
-      {/* Cost */}
-      <div className={`absolute -top-2 -left-2 md:-top-3 md:-left-3 w-5 h-5 md:w-6 md:h-6 bg-blue-600 rounded-full flex items-center justify-center font-bold border-2 border-white z-10 text-xs md:text-sm ${costColor}`}>
-        {displayCost}
+      {/* Header: Cost & Name */}
+      <div className="flex justify-between items-start mb-1">
+          <div className={`${costColor} text-white w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center font-bold text-sm md:text-lg shadow-md border border-blue-400 relative z-10 -ml-1 -mt-1`}>
+              {displayCost}
+          </div>
+          <div className="text-[10px] md:text-xs font-bold text-slate-200 text-right leading-tight max-w-[70%]">
+              {card.name}
+          </div>
       </div>
       
-      {/* Title */}
-      <div className="text-center font-bold text-[10px] md:text-xs mb-1 md:mb-2 pt-1 leading-none min-h-[20px]">{card.name}</div>
-      
-      {/* Image Placeholder */}
-      <div className="flex-1 bg-slate-700 rounded mb-1 md:mb-2 flex items-center justify-center text-slate-500">
-        {card.type === CardType.ATTACK ? <Sword className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.TRAP ? <Anchor className="w-4 h-4 md:w-5 md:h-5" /> : <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />}
+      {/* Art Placeholder */}
+      <div className="flex-1 bg-slate-950 rounded border border-slate-800 mb-2 relative overflow-hidden flex items-center justify-center transition-colors">
+        {card.type === CardType.ATTACK ? <Sword className="w-8 h-8 md:w-12 md:h-12 text-red-500/80" /> : card.type === CardType.SKILL ? <Shield className="w-8 h-8 md:w-12 md:h-12 text-blue-500/80" /> : <Zap className="w-8 h-8 md:w-12 md:h-12 text-yellow-500/80" />}
+        
+        {/* Type Icon Corner */}
+        <div className="absolute bottom-1 right-1 text-slate-600">
+            {card.type === CardType.ATTACK ? <Sword className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.SKILL ? <Zap className="w-4 h-4 md:w-5 md:h-5" /> : card.type === CardType.TRAP ? <Anchor className="w-4 h-4 md:w-5 md:h-5" /> : <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />}
+        </div>
       </div>
       
-      {/* Description - REMOVED overflow-hidden */}
-      <div className="text-[8px] md:text-[10px] text-center text-slate-300 leading-tight h-8 md:h-12 relative">
+      {/* Description */}
+      <div className="text-[8px] md:text-[10px] text-center text-slate-300 leading-tight h-8 md:h-12 relative flex items-center justify-center">
         <KeywordText text={card.description} />
       </div>
 
@@ -2388,7 +2304,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
       </div>
       
       {/* Footer */}
-      <div className="mt-auto pt-1 text-[6px] md:text-[8px] text-center text-slate-500 font-mono uppercase truncate">
+      <div className="mt-auto pt-1 text-[6px] md:text-[8px] text-center text-slate-500 font-mono uppercase truncate border-t border-slate-800/50">
         {card.type} - {card.rarity}
       </div>
     </div>
