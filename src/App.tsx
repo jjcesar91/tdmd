@@ -700,6 +700,7 @@ export default function GameDemo() {
   const [tempSelection, setTempSelection] = useState([]);
 
   const [previewCard, setPreviewCard] = useState(null);
+  const [previewStatus, setPreviewStatus] = useState(null);
 
   const [draftSelections, setDraftSelections] = useState({skill:null, power:null});
   const [notifications, setNotifications] = useState([]);
@@ -727,7 +728,7 @@ export default function GameDemo() {
               {Object.entries(statuses).map(([key, val]) => {
                   if (val <= 0) return null;
                   return (
-                      <div key={key} className="relative group cursor-help">
+                      <div key={key} className="relative group cursor-pointer" onClick={() => setPreviewStatus({key, val})}>
                           <div className="bg-slate-800 p-1 rounded border border-slate-600">
                              {ICONS[key] || <Info className="w-4 h-4"/>}
                           </div>
@@ -1890,6 +1891,7 @@ export default function GameDemo() {
         )}
 
         {previewCard && <CardPreviewOverlay card={previewCard} onClose={() => setPreviewCard(null)} />}
+        {previewStatus && <StatusPreviewOverlay status={previewStatus} onClose={() => setPreviewStatus(null)} />}
 
       {/* HEADER */}
       <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-2 md:px-4 shadow-lg z-10">
@@ -2183,6 +2185,33 @@ const KeywordText = ({ text }) => {
       })}
     </span>
   );
+};
+
+const StatusPreviewOverlay = ({ status, onClose }) => {
+    if (!status) return null;
+    const { key, val } = status;
+    
+    return (
+        <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="scale-150 mb-8 pointer-events-none">
+                 <div className="bg-slate-800 p-4 rounded-xl border-2 border-slate-600 flex flex-col items-center gap-2 w-32 h-32 justify-center">
+                     <div className="scale-[2]">
+                        {ICONS[key] || <Info className="w-4 h-4"/>}
+                     </div>
+                     <div className="text-2xl font-bold text-white mt-2">{val}</div>
+                 </div>
+            </div>
+            
+            <div className="w-full max-w-md space-y-4">
+                <div className="text-center text-slate-400 text-sm animate-pulse mb-4">Tap anywhere to close</div>
+                
+                <div className="bg-slate-800 border border-slate-600 rounded p-4">
+                    <div className="text-yellow-500 font-bold mb-2 text-xl text-center">{key}</div>
+                    <div className="text-white text-center">{KEYWORDS[key] || "No description available."}</div>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const CardPreviewOverlay = ({ card, onClose }) => {
