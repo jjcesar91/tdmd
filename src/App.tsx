@@ -3,7 +3,8 @@ import {
   Sword, Shield, Skull, Heart, Zap, 
   ChevronRight, RefreshCw, BookOpen, 
   Flame, Droplets, AlertTriangle, Target, 
-  Ghost, Cross, User, ArrowRight, Play, Plus, Layers, X, Info, Package, Bell, Trash2, Anchor, Check
+  Ghost, Cross, User, ArrowRight, Play, Plus, Layers, X, Info, Package, Bell, Trash2, Anchor, Check,
+  Circle, Sparkles, Crown
 } from 'lucide-react';
 
 // --- CONSTANTS & TYPES ---
@@ -1985,7 +1986,7 @@ export default function GameDemo() {
 
                       {/* Sprite Placeholder */}
                       <div className="w-32 h-32 bg-slate-800 rounded-lg border-2 border-slate-700 shadow-2xl flex items-center justify-center relative overflow-hidden group-hover:border-slate-500 transition-colors">
-                          <Ghost className="w-16 h-16 text-slate-600" />
+                          <Skull className="w-16 h-16 text-slate-600" />
                           <div className="absolute bottom-0 w-full h-1 bg-slate-700">
                               <div 
                                 className="h-full bg-red-600 transition-all duration-500" 
@@ -2035,7 +2036,7 @@ export default function GameDemo() {
               {Array.from({ length: player.energy }).map((_, i) => (
                   <div key={i} className="relative animate-in zoom-in duration-300">
                       <div className="bg-cyan-900/80 p-1 rounded-full border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]">
-                          <Zap className="w-3 h-3 text-cyan-300 fill-cyan-300" />
+                          <Circle className="w-3 h-3 text-cyan-300 fill-cyan-300" />
                       </div>
                   </div>
               ))}
@@ -2291,7 +2292,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
   const renderCost = () => {
       if (displayCost === 0) return <div className="font-bold text-white drop-shadow-md text-sm">0</div>;
       return Array.from({ length: displayCost }).map((_, i) => (
-          <Zap key={i} className="w-3 h-3 md:w-4 md:h-4 text-cyan-300 fill-cyan-300 drop-shadow-md" />
+          <Circle key={i} className="w-3 h-3 md:w-4 md:h-4 text-cyan-300 fill-cyan-300 drop-shadow-md" />
       ));
   };
 
@@ -2318,8 +2319,8 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
           {/* Background/Art */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-700 to-slate-800 opacity-50"></div>
           {card.type === CardType.ATTACK ? <Sword className="w-12 h-12 md:w-20 md:h-20 text-red-500/80 relative z-0" /> : 
-           card.type === CardType.SKILL ? <Shield className="w-12 h-12 md:w-20 md:h-20 text-blue-500/80 relative z-0" /> : 
-           <Zap className="w-12 h-12 md:w-20 md:h-20 text-yellow-500/80 relative z-0" />}
+           card.type === CardType.SKILL ? <Sparkles className="w-12 h-12 md:w-20 md:h-20 text-blue-500/80 relative z-0" /> : 
+           <Crown className="w-12 h-12 md:w-20 md:h-20 text-yellow-500/80 relative z-0" />}
            
            {/* Cost Icons (Top Right) */}
            <div className="absolute top-1 right-1 flex flex-col gap-0.5 items-center bg-black/40 p-1 rounded-lg backdrop-blur-sm border border-white/10 z-10 min-w-[20px]">
@@ -2358,7 +2359,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
           {/* Footer: Type & Rarity */}
           <div className="mt-auto pt-1 border-t border-slate-800 flex justify-between items-center text-[6px] md:text-[9px] text-slate-500 font-mono uppercase">
               <div className="flex items-center gap-1">
-                {card.type === CardType.ATTACK ? <Sword size={8} /> : card.type === CardType.SKILL ? <Shield size={8} /> : <Zap size={8} />}
+                {card.type === CardType.ATTACK ? <Sword size={8} /> : card.type === CardType.SKILL ? <Sparkles size={8} /> : <Crown size={8} />}
                 {card.type}
               </div>
               <span>{card.rarity}</span>
