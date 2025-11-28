@@ -2277,7 +2277,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
       onContextMenu={(e) => e.preventDefault()}
       style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }} 
       className={`
-        w-24 md:w-48 aspect-[2/3] rounded-xl border-2 shadow-2xl flex flex-col overflow-hidden relative bg-slate-900
+        w-24 md:w-48 aspect-[2/3] rounded-xl border-2 shadow-2xl flex flex-col relative bg-slate-900
         ${border}
         ${!playable ? 'opacity-60 grayscale-[0.5]' : ''}
         ${selected ? 'ring-4 ring-yellow-400 border-yellow-400' : ''}
@@ -2285,7 +2285,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
       `}
     >
       {/* 1. Image Area (Top ~55%) */}
-      <div className="h-[55%] w-full bg-slate-800 relative flex items-center justify-center overflow-hidden border-b-2 border-slate-700">
+      <div className="h-[55%] w-full bg-slate-800 relative flex items-center justify-center overflow-hidden border-b-2 border-slate-700 rounded-t-[10px]">
           {/* Background/Art */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-700 to-slate-800 opacity-50"></div>
           {card.type === CardType.ATTACK ? <Sword className="w-12 h-12 md:w-20 md:h-20 text-red-500/80 relative z-0" /> : 
@@ -2299,7 +2299,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
       </div>
 
       {/* 2. Content Area */}
-      <div className="flex-1 flex flex-col p-1 md:p-2 bg-gradient-to-b from-slate-900 to-slate-950 relative">
+      <div className="flex-1 flex flex-col p-1 md:p-2 bg-gradient-to-b from-slate-900 to-slate-950 relative rounded-b-[10px]">
           
           {/* Name */}
           <div className="text-center mb-1 md:mb-2 -mt-4 md:-mt-5 relative z-10">
@@ -2311,7 +2311,7 @@ const CardView = ({ card, selected, playable = true, costDisplay, onClick, onLon
           </div>
 
           {/* Description */}
-          <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <div className="flex-1 flex items-center justify-center">
             <div className="text-[8px] md:text-[11px] text-center text-slate-300 leading-tight px-1">
                 <KeywordText text={card.description} />
             </div>
